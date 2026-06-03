@@ -1,8 +1,8 @@
-"""Jackery Number Platform."""
+"""Jackery Select Platform."""
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -14,12 +14,13 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-
-NUMBERS = {
-    "socChgLimit": {"name": "SOC Charge Limit", "min": 0, "max": 100, "step": 1},
-    "socDischgLimit": {"name": "SOC Discharge Limit", "min": 0, "max": 100, "step": 1},
-    "maxOutPw": {"name": "Max Output Power (OnGrid)", "min": 0, "max": 10000, "step": 10},
+# autoStandby：0-无效；1-待机；2-开机
+AUTO_STANDBY_OPTIONS = {
+    "invalid": 0,
+    "standby": 1,
+    "on": 2,
 }
+AUTO_STANDBY_VALUE_TO_OPTION = {v: k for k, v in AUTO_STANDBY_OPTIONS.items()}
 
 
 async def async_setup_entry(
@@ -27,53 +28,41 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Jackery number entities."""
+    """Set up Jackery select entities."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     if coordinator is None:
-        _LOGGER.warning("Coordinator not ready for numbers")
+        _LOGGER.warning("Coordinator not ready for selects")
         return
 
-    entities = []
-    for key, cfg in NUMBERS.items():
-        entities.append(
-            JackeryMainNumber(
-                key=key,
-                name=cfg["name"],
-                min_value=cfg["min"],
-                max_value=cfg["max"],
-                step=cfg["step"],
+    async_add_entities(
+        [
+            JackeryAutoStandbySelect(
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             )
-        )
-
-    if entities:
-        async_add_entities(entities)
+        ]
+    )
 
 
-class JackeryMainNumber(NumberEntity):
-    """Main device number (cmd=5)."""
+class JackeryAutoStandbySelect(SelectEntity):
+    """Auto Standby mode select (autoStandby, cmd=5)."""
 
     def __init__(
         self,
-        key: str,
-        name: str,
-        min_value: float,
-        max_value: float,
-        step: float,
         coordinator: "JackeryDataCoordinator",
         config_entry_id: str,
     ) -> None:
-        self._key = key
+        self._key = "autoStandby"
         self._coordinator = coordinator
-        self._attr_name = name
+        self._attr_name = "Auto Standby Mode"
+        self._attr_icon = "mdi:power-sleep"
+        self._attr_options = list(AUTO_STANDBY_OPTIONS.keys())
+
         device_sn = getattr(coordinator, "_device_sn", None)
-        self._attr_unique_id = f"jackery_{device_sn}_main_{key}" if device_sn else f"jackery_main_{key}"
+        self._attr_unique_id = (
+            f"jackery_{device_sn}_main_{self._key}" if device_sn else f"jackery_main_{self._key}"
+        )
         self._attr_has_entity_name = True
-        self._attr_mode = NumberMode.SLIDER
-        self._attr_native_min_value = min_value
-        self._attr_native_max_value = max_value
-        self._attr_native_step = step
         device_info = {
             "identifiers": {(DOMAIN, config_entry_id)},
             "name": f"Jackery {device_sn}" if device_sn else "Jackery",
@@ -90,10 +79,10 @@ class JackeryMainNumber(NumberEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._coordinator.register_sensor(f"main_number_{self._key}", self)
+        self._coordinator.register_sensor(f"main_select_{self._key}", self)
 
     async def async_will_remove_from_hass(self) -> None:
-        self._coordinator.unregister_sensor(f"main_number_{self._key}")
+        self._coordinator.unregister_sensor(f"main_select_{self._key}")
         await super().async_will_remove_from_hass()
 
     def _update_from_coordinator(self, data: dict) -> None:
@@ -103,11 +92,14 @@ class JackeryMainNumber(NumberEntity):
         if val is None:
             return
         try:
-            self._attr_native_value = float(val)
+            self._attr_current_option = AUTO_STANDBY_VALUE_TO_OPTION.get(int(val))
             self._attr_available = True
             self.async_write_ha_state()
         except (TypeError, ValueError):
             pass
 
-    async def async_set_native_value(self, value: float) -> None:
-        await self._coordinator.async_control_main_device({self._key: int(value)})
+    async def async_select_option(self, option: str) -> None:
+        value = AUTO_STANDBY_OPTIONS.get(option)
+        if value is None:
+            return
+        await self._coordinator.async_control_main_device({self._key: value})
