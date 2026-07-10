@@ -827,6 +827,13 @@ class JackeryDataCoordinator:
 
                 # Type 101: Sub-device full data
                 elif msg_code == 101 and isinstance(body, dict):
+                    # Determine which payload types are actually present in this message.
+                    # The integration polls devType=2 (CTs) and devType=6 (plugs) separately.
+                    # A devType=6 response has no "cts" key; without this guard the CT cache
+                    # would be overwritten with [] on every plug poll (issue #16).
+                    has_ct_payload = any(k in body for k in ("ct", "cts"))
+                    has_plug_payload = any(k in body for k in ("plug", "plugs", "socket", "sockets"))
+
                     # Normalize sub-device payloads for plugs/sockets/CTs
                     raw_plugs = body.get("plug") or body.get("plugs") or body.get("socket") or body.get("sockets") or []
                     raw_cts = body.get("ct") or body.get("cts") or []
@@ -864,9 +871,11 @@ class JackeryDataCoordinator:
                         else:
                             current_plugs.append(item)
 
-                    self._data_cache["cts"] = current_cts
-                    self._data_cache["plugs"] = current_plugs
-                    self._data_cache["plug"] = current_plugs
+                    if has_ct_payload:
+                        self._data_cache["cts"] = current_cts
+                    if has_plug_payload:
+                        self._data_cache["plugs"] = current_plugs
+                        self._data_cache["plug"] = current_plugs
 
                 # Type 25 or Status: Main device data
                 elif isinstance(body, dict):
