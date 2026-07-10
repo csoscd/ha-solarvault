@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTemperature, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -419,6 +419,80 @@ SENSORS = {
         "state_class": SensorStateClass.TOTAL_INCREASING,
         "scale": 0.01,
     },
+
+    # Wechselrichter-Stack
+    "stack_in_power": {
+        "json_key": "stackInPw",
+        "name": "Inverter Stack Input Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:lightning-bolt-circle",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "stack_out_power": {
+        "json_key": "stackOutPw",
+        "name": "Inverter Stack Output Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:lightning-bolt-circle",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+
+    # BMS SOC (separat von Display-SOC batSoc)
+    "bms_soc": {
+        "json_key": "soc",
+        "name": "BMS SOC",
+        "unit": PERCENTAGE,
+        "icon": "mdi:battery-heart",
+        "device_class": SensorDeviceClass.BATTERY,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+
+    # Batteriestatus
+    "battery_state": {
+        "json_key": "batState",
+        "name": "Battery State",
+        "unit": None,
+        "icon": "mdi:battery-heart-variant",
+        "device_class": None,
+        "state_class": None,
+    },
+
+    # Netzwerk-Status
+    "ethernet_connected": {
+        "json_key": "ethPort",
+        "name": "Ethernet Connected",
+        "unit": None,
+        "icon": "mdi:ethernet",
+        "device_class": None,
+        "state_class": None,
+    },
+    "wifi_signal": {
+        "json_key": "wsig",
+        "name": "WiFi Signal",
+        "unit": SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+        "icon": "mdi:wifi",
+        "device_class": SensorDeviceClass.SIGNAL_STRENGTH,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+
+    # Leistungsgrenzen (nur lesbar)
+    "max_inverter_standby_power": {
+        "json_key": "maxInvStdPw",
+        "name": "Max Inverter Standby Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:speedometer",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "max_grid_standby_power": {
+        "json_key": "maxGridStdPw",
+        "name": "Max Grid Standby Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
 }
 
 # 子设备传感器配置
@@ -443,10 +517,10 @@ SUBDEVICE_SENSORS = {
             "scale": 0.01,
         },
     },
-    # CT / Smart Meter (devType=2)
+    # CT / Smart Meter (devType=2, subType 1-4)
     "ct": {
         "power": {
-            "key": "phasePw", # Resolve by subType to A/B/C/Total
+            "key": "phasePw",
             "name": "Power",
             "unit": UnitOfPower.WATT,
             "device_class": SensorDeviceClass.POWER,
@@ -454,13 +528,82 @@ SUBDEVICE_SENSORS = {
             "icon": "mdi:current-ac",
         },
         "energy": {
-            "key": "phaseEgy", # Resolve by subType to A/B/C/Total
+            "key": "phaseEgy",
             "name": "Energy",
             "unit": UnitOfEnergy.KILO_WATT_HOUR,
             "device_class": SensorDeviceClass.ENERGY,
             "state_class": SensorStateClass.TOTAL_INCREASING,
             "icon": "mdi:lightning-bolt",
-            "scale": 0.01, # Assumption
+            "scale": 0.01,
+        },
+    },
+    # SmartMeter 3P (devType=3, subType=5, model HTO907A)
+    # xPhasePw  = Consumption / Grid Import per phase
+    # xnPhasePw = Production  / Grid Export per phase
+    "ct_3phase": {
+        "import_total": {
+            "key": "tPhasePw",
+            "name": "Grid Import Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:transmission-tower-import",
+        },
+        "export_total": {
+            "key": "tnPhasePw",
+            "name": "Grid Export Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:transmission-tower-export",
+        },
+        "import_l1": {
+            "key": "aPhasePw",
+            "name": "L1 Import Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
+        },
+        "import_l2": {
+            "key": "bPhasePw",
+            "name": "L2 Import Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
+        },
+        "import_l3": {
+            "key": "cPhasePw",
+            "name": "L3 Import Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
+        },
+        "export_l1": {
+            "key": "anPhasePw",
+            "name": "L1 Export Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
+        },
+        "export_l2": {
+            "key": "bnPhasePw",
+            "name": "L2 Export Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
+        },
+        "export_l3": {
+            "key": "cnPhasePw",
+            "name": "L3 Export Power",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:current-ac",
         },
     },
 }
@@ -620,27 +763,29 @@ class JackeryDataCoordinator:
                     if isinstance(raw_cts, list):
                         for item in raw_cts:
                             if isinstance(item, dict):
-                                # Some CT payloads report devType=3, subType=2; normalize to devType=2
                                 sub_type = item.get("subType")
+                                dt = item.get("devType")
                                 if sub_type == 2:
                                     item = {**item, "devType": 2}
-                                elif item.get("devType") is None:
+                                elif dt is None:
                                     item = {**item, "devType": 2}
+                                # devType=3 + subType=5 = SmartMeter 3P (HTO907A) — keep devType as-is
                             combined.append(item)
 
                     for item in combined:
                         if not isinstance(item, dict):
                             continue
                         dt = item.get("devType")
-                        if dt == 2:
+                        sub_type = item.get("subType")
+                        # devType 2 = standard CT; devType 3 + subType 5 = SmartMeter 3P
+                        if dt == 2 or (dt == 3 and sub_type == 5):
                             current_cts.append(item)
                         else:
                             current_plugs.append(item)
 
                     self._data_cache["cts"] = current_cts
-                    # Store all in "plugs" for JackeryPlugSensor to find itself by SN
-                    self._data_cache["plugs"] = combined
-                    self._data_cache["plug"] = combined  # Keep original key too
+                    self._data_cache["plugs"] = current_plugs
+                    self._data_cache["plug"] = current_plugs
 
                 # Type 25 or Status: Main device data
                 elif isinstance(body, dict):
@@ -667,18 +812,18 @@ class JackeryDataCoordinator:
             _LOGGER.error(f"Error handling message: {e}")
 
     def _check_for_new_plugs(self, data: dict) -> None:
-        """检查并同步插座/CT（添加新设备，移除旧设备）."""
-        # Check both keys
-        plugs = data.get("plugs") or data.get("plug")
-        if not plugs or not isinstance(plugs, list):
-            plugs = data.get("cts") if isinstance(data.get("cts"), list) else None
-        
-        # 如果数据中根本没有 plugs/cts 字段，不做处理
-        if plugs is None:
+        """Check and sync plugs/CTs (add new, remove old)."""
+        all_devices = []
+        for key in ("plugs", "plug", "cts"):
+            items = data.get(key)
+            if isinstance(items, list):
+                all_devices.extend(items)
+
+        if not all_devices:
             return
 
         current_sns = set()
-        for plug in plugs:
+        for plug in all_devices:
             sn = plug.get("deviceSn") or plug.get("sn")
             if sn:
                 current_sns.add(sn)
@@ -720,24 +865,28 @@ class JackeryDataCoordinator:
                     if f"_{sn}_" in sensor_id or sensor_id.endswith(f"_{sn}"):
                         self.hass.async_create_task(entity.async_remove(force_remove=True))
 
-        # 3. 处理新增
+        # 3. Add newly discovered devices
         new_entities = []
         new_switch_entities = []
-        for plug in plugs:
+        for plug in all_devices:
             sn = plug.get("deviceSn") or plug.get("sn")
             dev_type = plug.get("devType")
-            if dev_type is None and plug.get("subType") == 2:
+            sub_type = plug.get("subType")
+            if dev_type is None and sub_type == 2:
                 dev_type = 2
-            
-            if sn and sn not in self._known_plugs:
-                _LOGGER.info(f"Discovered new sub-device: {sn} (Type: {dev_type})")
-                self._known_plugs.add(sn)
-                
-                if hasattr(self, "config_entry_id"):
-                    # Create Sensors defined in SUBDEVICE_SENSORS
-                    sensor_group = "ct" if dev_type == 2 else "plug"
-                    group_config = SUBDEVICE_SENSORS.get(sensor_group, {})
 
+            if sn and sn not in self._known_plugs:
+                _LOGGER.info(f"Discovered new sub-device: {sn} (devType={dev_type}, subType={sub_type})")
+                self._known_plugs.add(sn)
+
+                if hasattr(self, "config_entry_id"):
+                    is_ct = dev_type == 2 or (dev_type == 3 and sub_type == 5)
+                    if is_ct:
+                        sensor_group = "ct_3phase" if sub_type == 5 else "ct"
+                    else:
+                        sensor_group = "plug"
+
+                    group_config = SUBDEVICE_SENSORS.get(sensor_group, {})
                     for sensor_key, sensor_cfg in group_config.items():
                         entity = JackerySubDeviceSensor(
                             plug_sn=sn,
@@ -745,11 +894,12 @@ class JackeryDataCoordinator:
                             sensor_key=sensor_key,
                             sensor_config=sensor_cfg,
                             coordinator=self,
-                            config_entry_id=self.config_entry_id
+                            config_entry_id=self.config_entry_id,
+                            use_cts=is_ct,
                         )
                         new_entities.append(entity)
 
-                    if dev_type != 2:
+                    if not is_ct:
                         from .switch import JackeryPlugSwitch
                         switch_entity = JackeryPlugSwitch(
                             plug_sn=sn,
@@ -1206,6 +1356,7 @@ class JackerySubDeviceSensor(SensorEntity):
         sensor_config: dict,
         coordinator: JackeryDataCoordinator,
         config_entry_id: str,
+        use_cts: bool = False,
     ) -> None:
         """Initialize."""
         self._plug_sn = plug_sn
@@ -1213,10 +1364,10 @@ class JackerySubDeviceSensor(SensorEntity):
         self._sensor_key = sensor_key
         self._sensor_config = sensor_config
         self._coordinator = coordinator
-        
-        # Determine Device Name based on Type
-        if self._dev_type == 2:
-            device_name = "CT"
+        self._use_cts = use_cts
+
+        if self._use_cts:
+            device_name = "SmartMeter" if dev_type == 3 else "CT"
         else:
             device_name = "Plug"
 
@@ -1256,26 +1407,36 @@ class JackerySubDeviceSensor(SensorEntity):
 
     def _update_from_coordinator(self, data: dict) -> None:
         """Receive data from coordinator."""
-        if self._dev_type == 2:
-            plugs = data.get("cts")
+        if self._use_cts:
+            source = data.get("cts")
         else:
-            plugs = data.get("plugs") or data.get("plug")
-        if not plugs or not isinstance(plugs, list):
+            source = data.get("plugs") or data.get("plug")
+        if not source or not isinstance(source, list):
             return
 
-        # Find my plug data
-        my_plug = next((p for p in plugs if (p.get("sn") == self._plug_sn or p.get("deviceSn") == self._plug_sn)), None)
+        my_plug = next((p for p in source if (p.get("sn") == self._plug_sn or p.get("deviceSn") == self._plug_sn)), None)
         if not my_plug:
             return
 
-        # Store full raw data for attributes
         self._raw_data = dict(my_plug)
-        
+
         target_key = self._sensor_config.get("key")
+
+        # ct_3phase sensors use direct field access — no subType branching needed
+        if self._use_cts and self._dev_type == 3:
+            val = my_plug.get(target_key, 0)
+            try:
+                self._attr_native_value = float(val)
+                self._attr_available = True
+                self.async_write_ha_state()
+            except (TypeError, ValueError):
+                pass
+            return
+
         val = my_plug.get(target_key)
 
-        # CT phase mapping by subType (1=A, 2=B, 3=C, 4=Total)
-        if self._dev_type == 2 and target_key in {"phasePw", "phaseEgy"}:
+        # CT phase mapping by subType (1=A, 2=B, 3=C, 4=Total, 5=Net dual-circuit)
+        if self._use_cts and target_key in {"phasePw", "phaseEgy"}:
             sub_type = my_plug.get("subType")
             if target_key == "phasePw":
                 if sub_type == 1:
@@ -1363,25 +1524,39 @@ class JackerySubDeviceSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         raw = getattr(self, "_raw_data", None) or {}
-        return {
-            "plug_sn": self._plug_sn,
+        attrs: dict[str, Any] = {
+            "device_sn": self._plug_sn,
             "dev_type": self._dev_type,
-            "sensor_type": self._sensor_key,
-            "subType": raw.get("subType"),
-            # Normalized CT/plug fields (if present)
-            "sn": raw.get("sn") or raw.get("deviceSn"),
+            "sub_type": raw.get("subType"),
+            "sensor_key": self._sensor_key,
+            "comm_state": raw.get("commState"),
             "name": raw.get("name") or raw.get("scanName"),
-            "commState": raw.get("commState"),
-            # Plug fields
-            "inPw": raw.get("inPw"),
-            "outPw": raw.get("outPw"),
-            "sysSwitch": raw.get("sysSwitch") if raw.get("sysSwitch") is not None else raw.get("switchSta"),
-            "totalEgy": raw.get("totalEgy"),
-            # CT Fields
-            "TphasePw": raw.get("TphasePw"),
-            "TphaseEgy": raw.get("TphaseEgy"),
-            "TnphaseEgy": raw.get("TnphaseEgy"),
-            "tPhasePw": raw.get("tPhasePw"),
-            "tPhaseEgy": raw.get("tPhaseEgy"),
-            "tnPhaseEgy": raw.get("tnPhaseEgy"),
         }
+        if self._use_cts and self._dev_type == 3:
+            # SmartMeter 3P (HTO907A)
+            attrs.update({
+                "import_l1_w": raw.get("aPhasePw"),
+                "import_l2_w": raw.get("bPhasePw"),
+                "import_l3_w": raw.get("cPhasePw"),
+                "import_total_w": raw.get("tPhasePw"),
+                "export_l1_w": raw.get("anPhasePw"),
+                "export_l2_w": raw.get("bnPhasePw"),
+                "export_l3_w": raw.get("cnPhasePw"),
+                "export_total_w": raw.get("tnPhasePw"),
+                "sche_phase": raw.get("schePhase"),
+                "fun_form": raw.get("funForm"),
+            })
+        elif self._use_cts:
+            attrs.update({
+                "tPhasePw": raw.get("tPhasePw"),
+                "tPhaseEgy": raw.get("tPhaseEgy"),
+                "tnPhaseEgy": raw.get("tnPhaseEgy"),
+            })
+        else:
+            attrs.update({
+                "inPw": raw.get("inPw"),
+                "outPw": raw.get("outPw"),
+                "sysSwitch": raw.get("sysSwitch") if raw.get("sysSwitch") is not None else raw.get("switchSta"),
+                "totalEgy": raw.get("totalEgy"),
+            })
+        return attrs
