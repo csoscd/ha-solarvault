@@ -419,6 +419,15 @@ SENSORS = {
         "state_class": SensorStateClass.TOTAL_INCREASING,
         "scale": 0.01,
     },
+    "ac_to_grid_energy": {
+        "json_key": "acOtOngridEgy",
+        "name": "AC to Grid Energy",
+        "unit": UnitOfEnergy.KILO_WATT_HOUR,
+        "icon": "mdi:transmission-tower-export",
+        "device_class": SensorDeviceClass.ENERGY,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+        "scale": 0.01,
+    },
 
     # Wechselrichter-Stack
     "stack_in_power": {
@@ -604,6 +613,78 @@ SUBDEVICE_SENSORS = {
             "device_class": SensorDeviceClass.POWER,
             "state_class": SensorStateClass.MEASUREMENT,
             "icon": "mdi:current-ac",
+        },
+        "import_energy_total": {
+            "key": "tPhaseEgy",
+            "name": "Grid Import Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:transmission-tower-import",
+            "scale": 0.01,
+        },
+        "export_energy_total": {
+            "key": "tnPhaseEgy",
+            "name": "Grid Export Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:transmission-tower-export",
+            "scale": 0.01,
+        },
+        "import_energy_l1": {
+            "key": "aPhaseEgy",
+            "name": "L1 Import Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
+        },
+        "import_energy_l2": {
+            "key": "bPhaseEgy",
+            "name": "L2 Import Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
+        },
+        "import_energy_l3": {
+            "key": "cPhaseEgy",
+            "name": "L3 Import Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
+        },
+        "export_energy_l1": {
+            "key": "anPhaseEgy",
+            "name": "L1 Export Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
+        },
+        "export_energy_l2": {
+            "key": "bnPhaseEgy",
+            "name": "L2 Export Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
+        },
+        "export_energy_l3": {
+            "key": "cnPhaseEgy",
+            "name": "L3 Export Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:lightning-bolt",
+            "scale": 0.01,
         },
     },
 }
@@ -1424,9 +1505,12 @@ class JackerySubDeviceSensor(SensorEntity):
 
         # ct_3phase sensors use direct field access — no subType branching needed
         if self._use_cts and self._dev_type == 3:
-            val = my_plug.get(target_key, 0)
+            val = my_plug.get(target_key)
+            if val is None:
+                return
             try:
-                self._attr_native_value = float(val)
+                scale = self._sensor_config.get("scale", 1)
+                self._attr_native_value = float(val) * scale
                 self._attr_available = True
                 self.async_write_ha_state()
             except (TypeError, ValueError):
