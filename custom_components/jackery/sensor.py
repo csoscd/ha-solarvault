@@ -687,6 +687,28 @@ SUBDEVICE_SENSORS = {
             "scale": 0.01,
         },
     },
+    # Expansion battery (e.g. BP2500, devType=1, subType=0)
+    # Only cumulative energy is exposed via MQTT (type-23 messages). No real-time power.
+    "expansion_battery": {
+        "charge_energy": {
+            "key": "inEgy",
+            "name": "Charge Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:battery-arrow-up",
+            "scale": 0.01,
+        },
+        "discharge_energy": {
+            "key": "outEgy",
+            "name": "Discharge Energy",
+            "unit": UnitOfEnergy.KILO_WATT_HOUR,
+            "device_class": SensorDeviceClass.ENERGY,
+            "state_class": SensorStateClass.TOTAL_INCREASING,
+            "icon": "mdi:battery-arrow-down",
+            "scale": 0.01,
+        },
+    },
 }
 
 
@@ -811,12 +833,19 @@ class JackeryDataCoordinator:
                 # Type 23: Statistical/Energy Data
                 if msg_code == 23 and isinstance(body, dict):
                     device_sn_in_body = body.get("deviceSn")
-                    if device_sn_in_body == "system":
+                    dev_type_in_body = body.get("devType")
+                    if device_sn_in_body == "system" or device_sn_in_body is None:
                         # Merge into main device cache
                         self._data_cache.update(body)
+                    elif dev_type_in_body == 1:
+                        # Expansion battery (e.g. BP2500) — not in type-101, store separately
+                        exp_bats = self._data_cache.setdefault("expansion_batteries", {})
+                        if device_sn_in_body not in exp_bats:
+                            exp_bats[device_sn_in_body] = {}
+                        exp_bats[device_sn_in_body].update(body)
+                        self._check_for_new_expansion_batteries()
                     else:
-                        # Find and update sub-device in cache
-                        # Search in plugs and cts
+                        # Find and update sub-device in cache (CTs, SmartMeter)
                         for key in ["plugs", "plug", "cts"]:
                             items = self._data_cache.get(key)
                             if isinstance(items, list):
@@ -1003,6 +1032,31 @@ class JackeryDataCoordinator:
             self.add_entities_callback(new_entities)
         if new_switch_entities and self.add_switch_entities_callback:
             self.add_switch_entities_callback(new_switch_entities)
+
+    def _check_for_new_expansion_batteries(self) -> None:
+        """Create sensors for expansion batteries discovered via type-23 messages."""
+        exp_bats = self._data_cache.get("expansion_batteries")
+        if not exp_bats or not hasattr(self, "config_entry_id"):
+            return
+        new_entities = []
+        for sn in exp_bats:
+            if sn not in self._known_plugs:
+                self._known_plugs.add(sn)
+                _LOGGER.info(f"Discovered expansion battery: {sn}")
+                group_config = SUBDEVICE_SENSORS.get("expansion_battery", {})
+                for sensor_key, sensor_cfg in group_config.items():
+                    entity = JackerySubDeviceSensor(
+                        plug_sn=sn,
+                        dev_type=1,
+                        sensor_key=sensor_key,
+                        sensor_config=sensor_cfg,
+                        coordinator=self,
+                        config_entry_id=self.config_entry_id,
+                        use_expansion=True,
+                    )
+                    new_entities.append(entity)
+        if new_entities and self.add_entities_callback:
+            self.add_entities_callback(new_entities)
 
     def get_subdevices(self) -> list[dict[str, Any]]:
         """Return latest sub-device list from cache."""
@@ -1447,6 +1501,7 @@ class JackerySubDeviceSensor(SensorEntity):
         coordinator: JackeryDataCoordinator,
         config_entry_id: str,
         use_cts: bool = False,
+        use_expansion: bool = False,
     ) -> None:
         """Initialize."""
         self._plug_sn = plug_sn
@@ -1455,8 +1510,11 @@ class JackerySubDeviceSensor(SensorEntity):
         self._sensor_config = sensor_config
         self._coordinator = coordinator
         self._use_cts = use_cts
+        self._use_expansion = use_expansion
 
-        if self._use_cts:
+        if self._use_expansion:
+            device_name = "Battery"
+        elif self._use_cts:
             device_name = "SmartMeter" if dev_type == 3 else "CT"
         else:
             device_name = "Plug"
@@ -1497,6 +1555,22 @@ class JackerySubDeviceSensor(SensorEntity):
 
     def _update_from_coordinator(self, data: dict) -> None:
         """Receive data from coordinator."""
+        if self._use_expansion:
+            exp_data = (data.get("expansion_batteries") or {}).get(self._plug_sn)
+            if not exp_data:
+                return
+            val = exp_data.get(self._sensor_config.get("key"))
+            if val is None:
+                return
+            try:
+                scale = self._sensor_config.get("scale", 1)
+                self._attr_native_value = float(val) * scale
+                self._attr_available = True
+                self.async_write_ha_state()
+            except (TypeError, ValueError):
+                pass
+            return
+
         if self._use_cts:
             source = data.get("cts")
         else:
