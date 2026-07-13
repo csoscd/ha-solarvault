@@ -33,6 +33,15 @@
 | Max Inverter Standby Power | `maxInvStdPw` | Configured inverter standby power limit |
 | Max Grid Standby Power | `maxGridStdPw` | Configured grid standby power limit |
 | AC to Grid Energy | `acOtOngridEgy` | Cumulative AC-to-grid energy |
+| CT Import Energy | `inCtEgy` | Cumulative system-level CT import energy (added in firmware post-2026-07) |
+| CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
+| SOC Force Charge Target | `socForceChg` | See control entities below |
+
+#### New control entities (SolarVault 3 Pro Max)
+
+| Entity | MQTT field | Range | Description |
+|---|---|---|---|
+| SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
 
 #### SmartMeter 3P fix (HTO907A, devType=3, subType=5)
 

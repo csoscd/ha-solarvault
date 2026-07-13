@@ -20,6 +20,11 @@ NUMBERS = {
     "socDischgLimit": {"name": "SOC Discharge Limit", "min": 0, "max": 100, "step": 1},
     "maxOutPw": {"name": "Max Output Power (OnGrid)", "min": 0, "max": 10000, "step": 10},
     "autoStandby": {"name": "Auto Standby Mode", "min": 0, "max": 2, "step": 1},
+    # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
+    # Exact purpose not fully determined: Storm Warning uses cloud, not this field.
+    # Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold.
+    # Set to 0 to deactivate.
+    "socForceChg": {"name": "SOC Force Charge Target", "min": 0, "max": 100, "step": 1},
 }
 
 
