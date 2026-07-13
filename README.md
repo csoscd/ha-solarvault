@@ -151,6 +151,18 @@ energy_date_selection: false
 
 ---
 
+### Development
+
+#### Running the tests
+
+```bash
+uv run pytest tests/ -v
+```
+
+Tests cover the energy-flow calculation logic, MQTT message routing (including regression tests for the CT-cache bug), and sensor value transformations. No real MQTT broker or Home Assistant installation is required.
+
+---
+
 ### License
 
 MIT License – see [LICENSE](LICENSE)

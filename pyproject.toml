@@ -6,3 +6,13 @@ requires-python = ">=3.13"
 dependencies = [
     "paho-mqtt>=2.1.0",
 ]
+
+[dependency-groups]
+test = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-homeassistant-custom-component>=0.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

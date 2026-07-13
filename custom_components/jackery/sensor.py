@@ -1223,8 +1223,11 @@ class JackeryDataCoordinator:
             
             # 兼容旧逻辑或直接字段 (如果 cts 不存在)
             if not grid_available:
-                grid_buy_raw = data.get("gridBuyPw") or data.get("gridInPw")
-                grid_sell_raw = data.get("gridSellPw") or data.get("gridOutPw")
+                # Use explicit None check so that 0 W (no flow) is still valid
+                _buy = data.get("gridBuyPw")
+                grid_buy_raw = _buy if _buy is not None else data.get("gridInPw")
+                _sell = data.get("gridSellPw")
+                grid_sell_raw = _sell if _sell is not None else data.get("gridOutPw")
                 if grid_buy_raw is not None and grid_sell_raw is not None:
                     grid_available = True
                     grid_buy = float(grid_buy_raw)
