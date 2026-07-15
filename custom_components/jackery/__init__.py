@@ -9,7 +9,7 @@ from homeassistant.components import mqtt
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "jackery"
-PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

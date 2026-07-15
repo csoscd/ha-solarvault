@@ -554,6 +554,48 @@ SENSORS = {
         "device_class": None,
         "state_class": None,
     },
+
+    # Gerätestatus (type=2 / type=106)
+    "device_status": {
+        "json_key": "stat",
+        "name": "Device Status",
+        "unit": None,
+        "icon": "mdi:state-machine",
+        "device_class": None,
+        "state_class": None,
+    },
+    "work_mode": {
+        "json_key": "workMode",
+        "name": "Work Mode",
+        "unit": None,
+        "icon": "mdi:cog-outline",
+        "device_class": None,
+        "state_class": None,
+    },
+    "ongrid_status": {
+        "json_key": "ongridStat",
+        "name": "OnGrid Status",
+        "unit": None,
+        "icon": "mdi:transmission-tower",
+        "device_class": None,
+        "state_class": None,
+    },
+    "ct_status": {
+        "json_key": "ctStat",
+        "name": "CT Status",
+        "unit": None,
+        "icon": "mdi:current-ac",
+        "device_class": None,
+        "state_class": None,
+    },
+    "grid_meter_link": {
+        "json_key": "gridSate",
+        "name": "Grid Meter Link",
+        "unit": None,
+        "icon": "mdi:lan-connect",
+        "device_class": None,
+        "state_class": None,
+    },
 }
 
 # 子设备传感器配置
@@ -788,6 +830,30 @@ SUBDEVICE_SENSORS = {
     },
 }
 
+# devType values that identify CT/meter sub-devices (2=standard CT, 3=SmartMeter 3P, 4=Meter Collector)
+CT_DEV_TYPES: frozenset[int] = frozenset({2, 3, 4})
+
+
+def _merge_subdevice_list(
+    existing: list[dict] | None,
+    new_items: list[dict],
+) -> list[dict]:
+    """Merge sub-device entries by deviceSn/sn, preserving fields not present in new_items.
+
+    Instead of replacing the whole list on every message, each device is identified by its
+    serial number and new fields are merged on top of the existing entry.  Fields that are
+    present in the cache but absent from the current message are kept intact.
+    """
+    merged: dict[str, dict] = {}
+    for item in (existing or []) + new_items:
+        if not isinstance(item, dict):
+            continue
+        sn = item.get("deviceSn") or item.get("sn")
+        if not sn:
+            continue
+        merged[sn] = {**merged.get(sn, {}), **item}
+    return list(merged.values())
+
 
 class JackeryDataCoordinator:
     """协调器：管理MQTT订阅和数据获取，供所有传感器实体共享使用."""
@@ -805,9 +871,11 @@ class JackeryDataCoordinator:
         self._data_task = None
         self._subscribed = False
         self._last_update_time = time.time()
+        self._start_time = time.time()
 
         self._known_plugs = set() # Set of known plug SNs
         self._subdevice_missing_since = {} # {sn: timestamp} for deletion delay
+        self._subdevice_last_seen: dict[str, float] = {}  # {sn: timestamp} for offline detection
         self.add_entities_callback = None # Callback to add new entities
         self.add_switch_entities_callback = None # Callback to add new switch entities
         self._data_cache = {} # Cache for merged data from status and events
@@ -933,55 +1001,47 @@ class JackeryDataCoordinator:
 
                 # Type 101: Sub-device full data
                 elif msg_code == 101 and isinstance(body, dict):
-                    # Determine which payload types are actually present in this message.
-                    # The integration polls devType=2 (CTs) and devType=6 (plugs) separately.
-                    # A devType=6 response has no "cts" key; without this guard the CT cache
-                    # would be overwritten with [] on every plug poll (issue #16).
-                    has_ct_payload = any(k in body for k in ("ct", "cts"))
-                    has_plug_payload = any(k in body for k in ("plug", "plugs", "socket", "sockets"))
+                    # Each section (cts / plugs) is merged independently by deviceSn so that:
+                    # - A plug poll response (no "cts" key) never wipes the CT cache (issue #16)
+                    # - Partial updates preserve fields not present in the current message
+                    raw_plugs = (
+                        body.get("plug") or body.get("plugs")
+                        or body.get("socket") or body.get("sockets")
+                    )
+                    raw_cts = body.get("ct") or body.get("cts")
 
-                    # Normalize sub-device payloads for plugs/sockets/CTs
-                    raw_plugs = body.get("plug") or body.get("plugs") or body.get("socket") or body.get("sockets") or []
-                    raw_cts = body.get("ct") or body.get("cts") or []
+                    now_ts = time.time()
 
-                    current_cts = []
-                    current_plugs = []
-
-                    # Combine all sub-devices into a single list for discovery
-                    combined = []
-                    if isinstance(raw_plugs, list):
+                    if isinstance(raw_plugs, list) and raw_plugs:
+                        new_plugs = []
                         for item in raw_plugs:
-                            if isinstance(item, dict) and item.get("devType") is None:
+                            if not isinstance(item, dict):
+                                continue
+                            if item.get("devType") is None:
                                 item = {**item, "devType": 6}
-                            combined.append(item)
-                    if isinstance(raw_cts, list):
+                            new_plugs.append(item)
+                            sn = item.get("deviceSn") or item.get("sn")
+                            if sn:
+                                self._subdevice_last_seen[sn] = now_ts
+                        self._data_cache["plugs"] = _merge_subdevice_list(
+                            self._data_cache.get("plugs"), new_plugs
+                        )
+                        self._data_cache["plug"] = self._data_cache["plugs"]
+
+                    if isinstance(raw_cts, list) and raw_cts:
+                        new_cts = []
                         for item in raw_cts:
-                            if isinstance(item, dict):
-                                sub_type = item.get("subType")
-                                dt = item.get("devType")
-                                if sub_type == 2:
-                                    item = {**item, "devType": 2}
-                                elif dt is None:
-                                    item = {**item, "devType": 2}
-                                # devType=3 + subType=5 = SmartMeter 3P (HTO907A) — keep devType as-is
-                            combined.append(item)
-
-                    for item in combined:
-                        if not isinstance(item, dict):
-                            continue
-                        dt = item.get("devType")
-                        sub_type = item.get("subType")
-                        # devType 2 = standard CT; devType 3 + subType 5 = SmartMeter 3P
-                        if dt == 2 or (dt == 3 and sub_type == 5):
-                            current_cts.append(item)
-                        else:
-                            current_plugs.append(item)
-
-                    if has_ct_payload:
-                        self._data_cache["cts"] = current_cts
-                    if has_plug_payload:
-                        self._data_cache["plugs"] = current_plugs
-                        self._data_cache["plug"] = current_plugs
+                            if not isinstance(item, dict):
+                                continue
+                            if item.get("devType") is None:
+                                item = {**item, "devType": 2}
+                            new_cts.append(item)
+                            sn = item.get("deviceSn") or item.get("sn")
+                            if sn:
+                                self._subdevice_last_seen[sn] = now_ts
+                        self._data_cache["cts"] = _merge_subdevice_list(
+                            self._data_cache.get("cts"), new_cts
+                        )
 
                 # Type 25 or Status: Main device data
                 elif isinstance(body, dict):
@@ -1025,6 +1085,21 @@ class JackeryDataCoordinator:
                 current_sns.add(sn)
         
         now = time.time()
+
+        # 0. Update sub-device availability based on last_seen timestamps
+        for sn in self._known_plugs:
+            last_seen = self._subdevice_last_seen.get(sn, 0)
+            # During the first 60s after start, don't mark offline (device might not have reported yet)
+            if last_seen == 0 and (now - self._start_time) < 60:
+                continue
+            is_available = last_seen > 0 and (now - last_seen) <= 60
+            for sensor_id, entity in self._sensors.items():
+                if f"_{sn}_" in sensor_id or sensor_id.endswith(f"_{sn}"):
+                    if entity.available != is_available:
+                        entity._attr_available = is_available
+                        entity.async_write_ha_state()
+                        if not is_available:
+                            _LOGGER.debug("Sub-device %s offline (last seen %.0fs ago)", sn, now - last_seen)
 
         # 1. 更新 missing 状态
         for sn in current_sns:
@@ -1076,9 +1151,9 @@ class JackeryDataCoordinator:
                 self._known_plugs.add(sn)
 
                 if hasattr(self, "config_entry_id"):
-                    is_ct = dev_type == 2 or (dev_type == 3 and sub_type == 5)
+                    is_ct = dev_type in CT_DEV_TYPES
                     if is_ct:
-                        sensor_group = "ct_3phase" if sub_type == 5 else "ct"
+                        sensor_group = "ct_3phase" if (dev_type == 3 and sub_type == 5) else "ct"
                     else:
                         sensor_group = "plug"
 

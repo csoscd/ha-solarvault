@@ -39,12 +39,19 @@
 | WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
 | Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
+| Device Status | `stat` | Host operation status (normal / waiting / alarm / fault / standby / low_power) |
+| Work Mode | `workMode` | Current energy work mode (sent in type-107 incremental updates) |
+| OnGrid Status | `ongridStat` | Grid-tie status: on_grid / off_grid |
+| CT Status | `ctStat` | CT meter connection status: online / offline |
+| Grid Meter Link | `gridSate` | Grid meter link health: normal / abnormal |
 
 #### New control entities (SolarVault 3 Pro Max)
 
 | Entity | MQTT field | Range | Description |
 |---|---|---|---|
 | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
+| Auto Standby Mode | `autoStandby` | invalid / standby / on | Dropdown selector – replaces the numeric sensor. Controls auto-standby behaviour. |
+| Reboot | – | – | Button entity that sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
 
 #### SmartMeter 3P fix (HTO907A, devType=3, subType=5)
 

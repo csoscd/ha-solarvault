@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] – 2026-07-15
+
+### Added
+- **Reboot button** – new `button` entity sends a restart command (type=1, cmd=5, reboot=1) to the
+  SolarVault directly from Home Assistant. Useful to restore SmartMeter LAN mode without touching
+  the device or app.
+- **Auto Standby Mode select** – `autoStandby` is now exposed as a `select` entity with human-readable
+  options (invalid / standby / on) instead of a raw numeric sensor.
+- **5 new device status sensors**: `Device Status` (stat), `Work Mode` (workMode),
+  `OnGrid Status` (ongridStat), `CT Status` (ctStat), `Grid Meter Link` (gridSate).
+  These fields are sent in type-2 / type-106 / type-107 messages; sensors appear automatically
+  once the device reports the field at least once.
+- **Sub-device offline detection** – each CT/plug is now marked `unavailable` in HA if it has not
+  reported data for 60 seconds, instead of holding the last known value indefinitely.
+- **devType=4 (Meter Collector) support** – classified as CT rather than plug; sensor group
+  follows the same `ct` path as devType=2.
+
+### Changed
+- Sub-device cache now uses **SN-based merging** (`_merge_subdevice_list`): partial updates
+  preserve fields not present in the current message, rather than replacing the entire list.
+  Adopted from upstream v2.0-beta.
+- `CT_DEV_TYPES = frozenset({2, 3, 4})` replaces inline `devType` checks throughout the
+  discovery and sensor-creation path.
+
+---
+
 ## [1.1.70] – 2026-07-15
 
 ### Fixed

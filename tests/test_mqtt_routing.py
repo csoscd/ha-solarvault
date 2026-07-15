@@ -165,6 +165,37 @@ def test_type101_plug_devtype6_goes_to_plugs(coordinator):
     assert not any(d.get("deviceSn") == "PLUG002" for d in cts)
 
 
+def test_type101_meter_collector_devtype4_goes_to_cts(coordinator):
+    """Meter Collector (devType=4) must be classified as CT, not plug."""
+    send(coordinator, TOPIC_EVENT, {
+        "type": 101,
+        "body": {"cts": [{"deviceSn": "MC001", "devType": 4}]},
+    })
+    cts = coordinator._data_cache.get("cts", [])
+    plugs = coordinator._data_cache.get("plugs", [])
+    assert any(d.get("deviceSn") == "MC001" for d in cts)
+    assert not any(d.get("deviceSn") == "MC001" for d in plugs)
+
+
+def test_type101_sn_merge_preserves_existing_fields(coordinator):
+    """SN-based merge: a partial update must not wipe fields from the previous message."""
+    # Full initial message
+    send(coordinator, TOPIC_EVENT, {
+        "type": 101,
+        "body": {"cts": [{"deviceSn": "CT001", "devType": 3, "subType": 5,
+                          "tPhasePw": 300, "commMode": 1, "wip": "192.168.1.50"}]},
+    })
+    # Partial update — only power fields, commMode and wip absent
+    send(coordinator, TOPIC_EVENT, {
+        "type": 101,
+        "body": {"cts": [{"deviceSn": "CT001", "devType": 3, "tPhasePw": 420}]},
+    })
+    ct = next(d for d in coordinator._data_cache["cts"] if d.get("deviceSn") == "CT001")
+    assert ct["tPhasePw"] == 420          # updated value
+    assert ct["commMode"] == 1            # preserved from first message
+    assert ct["wip"] == "192.168.1.50"   # preserved from first message
+
+
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------

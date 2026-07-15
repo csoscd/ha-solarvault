@@ -23,6 +23,8 @@ def coordinator():
     coord._last_update_time = time.time()
     coord._known_plugs = set()
     coord._subdevice_missing_since = {}
+    coord._subdevice_last_seen = {}
+    coord._start_time = time.time()
     coord.add_entities_callback = None
     coord.add_switch_entities_callback = None
     coord._data_cache = {}
