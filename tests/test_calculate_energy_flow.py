@@ -99,16 +99,39 @@ def test_home_power_ct_available_normal():
 
 
 def test_home_power_ct_feed_in_with_ongrid_supply():
-    """CT export, system feeds grid via ongrid supply."""
+    """CT export, system feeds grid: outOngridPw is total AC output (not net-to-grid).
+    House load = outOngridPw - tnPhasePw when no grid import."""
     data = {
         "pvPw": 5000,
         "swEpsInPw": 0, "swEpsOutPw": 0,
-        "inOngridPw": 0, "outOngridPw": 2000,
-        "cts": [{"tPhasePw": 0, "tnPhasePw": 3000}],
+        "inOngridPw": 0, "outOngridPw": 3000,
+        "cts": [{"tPhasePw": 0, "tnPhasePw": 2000}],
     }
     result = calc(data)
-    # grid_sell=3000, ongrid_supply=2000 → branch A: p_home = 3000 - 2000 = 1000
+    # p_grid = 0 - 2000 = -2000; p_ong = 0 - 3000 = -3000
+    # p_home = -2000 - (-3000) = 1000 W house load
     assert result["calc_home_power"] == 1000.0
+
+
+def test_home_power_phase_balanced_feed_in():
+    """Regression: phase-balanced CT causes jackery_home_power to go negative.
+
+    Scenario: Jackery discharges 274 W + 27 W solar = 301 W total AC output.
+    L1 draws 250 W from grid, L3 exports 279 W from Jackery.
+    Combined-phase metering: tPhasePw=0, tnPhasePw=29 (net to public grid).
+    Correct home load = 301 - 29 = 272 W (positive).
+    Old Branch A produced 29 - 301 = -272 W (wrong sign).
+    """
+    data = {
+        "pvPw": 27,
+        "swEpsInPw": 0, "swEpsOutPw": 0,
+        "inOngridPw": 0, "outOngridPw": 301,
+        "cts": [{"tPhasePw": 0, "tnPhasePw": 29}],
+    }
+    result = calc(data)
+    # p_grid = 0 - 29 = -29; p_ong = 0 - 301 = -301
+    # p_home = -29 - (-301) = 272 W
+    assert result["calc_home_power"] == 272.0
 
 
 def test_home_power_anomaly_branch_small_difference():

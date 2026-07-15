@@ -1303,26 +1303,20 @@ class JackeryDataCoordinator:
             
             if p_grid is not None:
                 # 电表可用
+                # Base formula: p_home = p_grid - p_ong
+                #   = (grid_buy - grid_sell) - (ongrid_charge - ongrid_supply)
+                #   = ongrid_supply + grid_buy - grid_sell - ongrid_charge
+                # This correctly handles all normal scenarios including phase-balanced
+                # feed-in (outOngridPw is total SolarVault AC output, not net-to-grid).
                 p_home = p_grid - p_ong
-                
-                # 🔴 异常分支 1
+
+                # 🔴 异常分支 1: measurement noise — grid_buy slightly below ongrid_charge
                 if grid_buy > 0 and ongrid_charge > 0 and grid_buy < ongrid_charge and (ongrid_charge - grid_buy) <= 50:
-                    # p_grid = p_ong # Already handled in p_grid calc above? 
-                    # Note: User spec says "P_grid = P_ong (按异常流程先修正); P_home = 0"
-                    # My P_grid calc above handled P_grid. Now P_home:
                     p_home = 0.0
 
-                # 🔴 异常分支 2
+                # 🔴 异常分支 2: larger discrepancy between grid_buy and ongrid_charge
                 elif grid_buy > 0 and ongrid_charge > 0 and grid_buy < ongrid_charge and (ongrid_charge - grid_buy) > 50:
                     p_home = ongrid_charge - grid_buy
-
-                # 🔴 馈网场景分支 A
-                elif grid_sell > 0 and ongrid_supply > 0:
-                    p_home = grid_sell - ongrid_supply
-
-                # 🔴 馈网场景分支 B
-                elif grid_sell > 0 and ongrid_charge > 0:
-                    p_home = grid_sell + ongrid_charge
             
             else:
                 # 电表不可用 (No CT)
