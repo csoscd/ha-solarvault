@@ -189,6 +189,34 @@ entities:
 
 ---
 
+### Troubleshooting
+
+#### SmartMeter 3P: no measurement data (all sensors show 0 W / unavailable)
+
+**Symptom:** SmartMeter power sensors (L1–L3 Import/Export, Grid Import/Export Power) suddenly stop delivering values or show 0 W permanently, even though the SmartMeter appears as available in Home Assistant.
+
+**Root cause: commMode switch from LAN → Cloud**
+
+The SmartMeter HTO907A can switch on its own from local MQTT mode ("LAN") to Jackery Cloud relay mode ("Cloud") — for example after repeated internet outages. In Cloud mode it still reports its device info to the SolarVault, but no measurement data.
+
+**How to identify it:**
+
+1. **HA sensor** `sensor.jackery_<name>_communication_mode` shows `2` instead of `1`
+   - `1` = LAN (local MQTT path, measurement data flows normally)
+   - `2` = Cloud (measurements are relayed via Jackery cloud, not available in HA)
+
+2. **Jackery app:** The SmartMeter displays "Cloud" instead of "LAN" at the top.
+
+3. **MQTT diagnosis:** The type-101 event contains `"commMode":2` and the measurement fields (`tPhasePw`, `aPhasePw`, etc.) are absent from the body entirely.
+
+**Fix: restart the SolarVault**
+
+Restarting the SolarVault (via the Jackery app or directly on the device) causes the SmartMeter to re-register with the SolarVault and automatically choose the LAN path. After the restart, `communication_mode` should return to `1` and measurement data should resume.
+
+> **Note:** There is no MQTT command to set commMode directly — the mode is decided by the SmartMeter itself and cannot be overridden via MQTT.
+
+---
+
 ### Links
 
 - **Original integration**: https://github.com/Jackery-Official/jackery
