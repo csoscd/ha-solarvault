@@ -36,6 +36,9 @@
 | CT Import Energy | `inCtEgy` | Cumulative system-level CT import energy (added in firmware post-2026-07) |
 | CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
 | SOC Force Charge Target | `socForceChg` | See control entities below |
+| WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
+| Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
+| Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
 
 #### New control entities (SolarVault 3 Pro Max)
 
@@ -47,7 +50,7 @@
 
 The original integration incorrectly classified the Jackery SmartMeter 3P as a smart plug instead of a CT meter (see [issue #18](https://github.com/Jackery-Official/jackery/issues/18)). This caused the energy flow calculation to receive no CT data at all.
 
-This fork fixes the classification and exposes **16 dedicated sensors** per SmartMeter:
+This fork fixes the classification and exposes **19 dedicated sensors** per SmartMeter:
 
 | Sensor | MQTT field | Description |
 |---|---|---|
@@ -59,6 +62,9 @@ This fork fixes the classification and exposes **16 dedicated sensors** per Smar
 | Grid Export Energy | `tnPhaseEgy` | Cumulative total grid export energy |
 | L1/L2/L3 Import Energy | `a/b/cPhaseEgy` | Cumulative per-phase import energy |
 | L1/L2/L3 Export Energy | `an/bn/cnPhaseEgy` | Cumulative per-phase export energy |
+| Communication Mode | `commMode` | 1 = LAN (local MQTT), 2 = Cloud relay – useful for diagnosing data loss |
+| Communication State | `commState` | 1 = online, 0 = offline |
+| IP Address | `wip` | IP address of the SmartMeter on the local network |
 
 ---
 
