@@ -1,0 +1,112 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [1.1.70] – 2026-07-15
+
+### Fixed
+- `jackery_home_power` was calculated as a negative value during phase-balanced feed-in.
+  When the SmartMeter operates in combined-phase mode, `outOngridPw` (total SolarVault AC
+  output) is much larger than `tnPhasePw` (net to public grid). A special-case branch used
+  `grid_sell − ongrid_supply` (inverted sign) and overrode the correct base formula
+  `p_grid − p_ong`. The branch has been removed; the base formula handles all scenarios correctly.
+  Example: 301 W AC output, 29 W net to grid → home load now correctly shows 272 W instead of −272 W.
+
+### Tests
+- Added regression test `test_home_power_phase_balanced_feed_in` covering the above scenario.
+- Fixed `test_home_power_ct_feed_in_with_ongrid_supply` to use a physically realistic scenario.
+
+---
+
+## [1.1.69] – 2026-07-15
+
+### Added
+- **6 new diagnostic sensors** to aid troubleshooting:
+  - SolarVault: `WiFi SSID` (`wname`), `Ethernet IP` (`eip`), `Device Capability` (`ability`)
+  - SmartMeter 3P: `Communication Mode` (`commMode`), `Communication State` (`commState`), `IP Address` (`wip`)
+- `commMode` sensor makes the LAN→Cloud switch immediately visible in HA history.
+- String sensor support in `ct_3phase` update path (previously string values were silently discarded).
+
+### Documentation
+- Added Troubleshooting section to README documenting the SmartMeter `commMode` LAN→Cloud issue:
+  internet outages can cause the SmartMeter to switch to Cloud mode, stopping MQTT measurement data.
+  A SolarVault restart (via app or on the device) restores LAN mode.
+
+---
+
+## [1.1.68] – 2026-07-15
+
+### Added
+- Automated test suite (49 tests) covering `_calculate_energy_flow`, MQTT message routing,
+  and sensor value transforms. No real MQTT broker or HA installation required.
+- CI workflow (`.github/workflows/validate.yml`) runs tests on every push.
+
+### Fixed
+- `gridSellPw=0` (no export) was treated as falsy by `or`, causing the
+  `gridBuyPw`/`gridSellPw` fallback path to leave `grid_available=False` even when both
+  fields were present. Fixed with explicit `is not None` checks.
+
+---
+
+## [1.1.67] – 2026-07-14
+
+### Added
+- `SOC Force Charge Target` (`socForceChg`) as a writable `number` entity (range 0–100 %).
+  Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Exact purpose undetermined —
+  documented uncertainty in README and code.
+
+---
+
+## [1.1.66] – 2026-07-14
+
+### Added
+- 3 new sensors confirmed via live MQTT capture after firmware update:
+  - `SOC Force Charge Target` (`socForceChg`) — read-only sensor (writable entity added in 1.1.67)
+  - `CT Import Energy` (`inCtEgy`) — cumulative system-level CT import energy
+  - `CT Export Energy` (`outCtEgy`) — cumulative system-level CT export energy
+
+---
+
+## [1.1.65] – 2026-07-10
+
+### Fixed
+- **CT/SmartMeter sub-device flapping (issue #16):** A `devType=6` (plug) poll response
+  overwrote the CT cache with an empty list, causing the SmartMeter to appear as missing every
+  ~11 s. Fixed by only updating the relevant cache section (CT or plug) when the payload
+  contains the corresponding keys (`has_ct_payload` / `has_plug_payload`).
+
+### Added
+- **BP2500 expansion battery energy sensors** — the BP2500 appears in type-23 energy statistics
+  messages (~every 10 min). Two sensors are created automatically when detected:
+  `Charge Energy` (`inEgy`) and `Discharge Energy` (`outEgy`), both in kWh (scale × 0.01).
+
+---
+
+## [1.1.64] – 2026-07-10
+
+### Added
+- 8 CT energy sensors for SmartMeter 3P from type-23 messages:
+  `tPhaseEgy`, `tnPhaseEgy`, per-phase import/export energy (L1–L3).
+- Missing `AC to Grid Energy` sensor (`acOtOngridEgy`).
+
+### Fixed
+- Scale factor for `ct_3phase` energy sensors corrected to × 0.01 (→ kWh).
+
+---
+
+## [1.1.63] – 2026-07-10
+
+### Added (initial fork release)
+- Fork of [Jackery-Official/jackery](https://github.com/Jackery-Official/jackery) with fixes
+  and new sensors for the **Jackery SolarVault 3 Pro Max**.
+- New sensors from live MQTT data: `stackInPw`, `stackOutPw`, `soc` (BMS SOC), `batState`,
+  `ethPort`, `wsig`, `maxInvStdPw`, `maxGridStdPw`.
+
+### Fixed
+- **SmartMeter 3P (HTO907A, devType=3, subType=5) misclassified as plug (issue #18):**
+  The original integration routed `devType=3` to the plug handler, causing the energy flow
+  calculation to receive no CT data. Fixed by adding a dedicated `ct_3phase` sensor group
+  with 8 sensors (L1/L2/L3 import + export + totals).
