@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.1] – 2026-07-15
+
+### Added
+- **Type-105 poll** every 5 minutes (30 cycles × 10 s); fires immediately on first startup cycle.
+  The SolarVault responds with a **type-106 full system state** message.
+- **Type-106 message handler**: merges the response body into the data cache.
+  `workModel` (type-106 alias) is automatically normalized to `workMode`.
+- **13 new sensors** from type-106 data — all appear automatically once reported:
+  - `Home Load Power (Estimated)` (`otherLoadPw`) — house consumption as seen by the SolarVault
+  - `Grid AC Input Power` (`gridInPw`) / `Grid AC Output Power` (`gridOutPw`) — alternative to `inOngridPw`/`outOngridPw`
+  - `Grid Side Input Power` (`inGridSidePw`) / `Grid Side Output Power` (`outGridSidePw`)
+  - `Energy Plan Power` (`energyPlanPw`) — planned output target
+  - `Standby Power Threshold` (`standbyPw`)
+  - `PV Max Charge Power` (`pvMaxChgPower`)
+  - `Max System Output Power` (`maxSysOutPw`) / `Max System Input Power` (`maxSysInPw`)
+  - `Follow Meter Power` (`isFollowMeterPw`)
+  - `Off-Grid Fallback` (`offGridDown`) / `Off-Grid Switch Time` (`offGridTime`)
+
+### Notes
+- Confirmed via live MQTT capture: our SolarVault does **not** send types 102/106/107 spontaneously.
+  Type 106 is only delivered as a response to a type-105 poll.
+  Types 102 and 107 were not observed at all — likely require newer firmware or different hardware.
+
+---
+
 ## [1.2.0] – 2026-07-15
 
 ### Added

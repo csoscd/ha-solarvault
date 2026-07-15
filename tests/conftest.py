@@ -25,6 +25,7 @@ def coordinator():
     coord._subdevice_missing_since = {}
     coord._subdevice_last_seen = {}
     coord._start_time = time.time()
+    coord._poll_105_counter = 0
     coord.add_entities_callback = None
     coord.add_switch_entities_callback = None
     coord._data_cache = {}

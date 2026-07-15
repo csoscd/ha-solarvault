@@ -218,3 +218,34 @@ def test_type101_body_none_returns_early(coordinator):
     """Type 101 with null body must not crash or modify cache."""
     send(coordinator, TOPIC_STATUS, {"type": 101, "body": None})
     assert coordinator._data_cache == {}
+
+
+# ---------------------------------------------------------------------------
+# Type 106 — full system state (response to type-105 poll)
+# ---------------------------------------------------------------------------
+
+def test_type106_merges_body_into_cache(coordinator):
+    send(coordinator, TOPIC_EVENT, {
+        "type": 106,
+        "body": {"stat": 0, "ongridStat": 1, "otherLoadPw": 167, "gridOutPw": 167},
+    })
+    assert coordinator._data_cache["otherLoadPw"] == 167
+    assert coordinator._data_cache["ongridStat"] == 1
+
+
+def test_type106_normalizes_workmodel_to_workmode(coordinator):
+    """workModel (type-106 alias) must be stored as workMode for the sensor."""
+    send(coordinator, TOPIC_EVENT, {
+        "type": 106,
+        "body": {"workModel": 2, "stat": 0},
+    })
+    assert coordinator._data_cache["workMode"] == 2
+
+
+def test_type106_does_not_overwrite_workmode_if_present(coordinator):
+    """If workMode is already set, workModel must not shadow it."""
+    send(coordinator, TOPIC_EVENT, {
+        "type": 106,
+        "body": {"workModel": 2, "workMode": 3},
+    })
+    assert coordinator._data_cache["workMode"] == 3

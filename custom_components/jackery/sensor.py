@@ -596,6 +596,112 @@ SENSORS = {
         "device_class": None,
         "state_class": None,
     },
+
+    # Type-106 fields (response to type-105 poll, ~every 5 min)
+    "other_load_power": {
+        "json_key": "otherLoadPw",
+        "name": "Home Load Power (Estimated)",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:home-lightning-bolt-outline",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "grid_in_power": {
+        "json_key": "gridInPw",
+        "name": "Grid AC Input Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower-import",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "grid_out_power": {
+        "json_key": "gridOutPw",
+        "name": "Grid AC Output Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower-export",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "grid_side_in_power": {
+        "json_key": "inGridSidePw",
+        "name": "Grid Side Input Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower-import",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "grid_side_out_power": {
+        "json_key": "outGridSidePw",
+        "name": "Grid Side Output Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower-export",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "energy_plan_power": {
+        "json_key": "energyPlanPw",
+        "name": "Energy Plan Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:lightning-bolt-outline",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "standby_power": {
+        "json_key": "standbyPw",
+        "name": "Standby Power Threshold",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:power-sleep",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "pv_max_charge_power": {
+        "json_key": "pvMaxChgPower",
+        "name": "PV Max Charge Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:solar-power",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "max_system_output_power": {
+        "json_key": "maxSysOutPw",
+        "name": "Max System Output Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:speedometer",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "max_system_input_power": {
+        "json_key": "maxSysInPw",
+        "name": "Max System Input Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:speedometer",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "is_follow_meter_power": {
+        "json_key": "isFollowMeterPw",
+        "name": "Follow Meter Power",
+        "unit": None,
+        "icon": "mdi:meter-electric-outline",
+        "device_class": None,
+        "state_class": None,
+    },
+    "off_grid_fallback": {
+        "json_key": "offGridDown",
+        "name": "Off-Grid Fallback",
+        "unit": None,
+        "icon": "mdi:power-plug-off-outline",
+        "device_class": None,
+        "state_class": None,
+    },
+    "off_grid_time": {
+        "json_key": "offGridTime",
+        "name": "Off-Grid Switch Time",
+        "unit": "s",
+        "icon": "mdi:timer-outline",
+        "device_class": None,
+        "state_class": None,
+    },
 }
 
 # 子设备传感器配置
@@ -876,6 +982,7 @@ class JackeryDataCoordinator:
         self._known_plugs = set() # Set of known plug SNs
         self._subdevice_missing_since = {} # {sn: timestamp} for deletion delay
         self._subdevice_last_seen: dict[str, float] = {}  # {sn: timestamp} for offline detection
+        self._poll_105_counter: int = 29  # start at 29 so type-105 fires on first cycle
         self.add_entities_callback = None # Callback to add new entities
         self.add_switch_entities_callback = None # Callback to add new switch entities
         self._data_cache = {} # Cache for merged data from status and events
@@ -1043,13 +1150,19 @@ class JackeryDataCoordinator:
                             self._data_cache.get("cts"), new_cts
                         )
 
+                # Type 106: Full system state (response to type-105 poll)
+                elif msg_code == 106 and isinstance(body, dict):
+                    # Normalize workModel (type-106 alias) → workMode (our sensor key)
+                    merged = dict(body)
+                    if "workModel" in merged and "workMode" not in merged:
+                        merged["workMode"] = merged["workModel"]
+                    self._data_cache.update(merged)
+                    _LOGGER.debug("Received type-106 system state (%d fields)", len(body))
+
                 # Type 25 or Status: Main device data
                 elif isinstance(body, dict):
                     # Merge top-level keys into cache to preserve fields not present in current message
                     self._data_cache.update(body)
-                    
-                    # Special handling for isAutoStandby/autoStandby to ensure they are always available if ever seen
-                    # (Optional: can add more critical fields here if needed)
 
             except json.JSONDecodeError:
                 _LOGGER.warning(f"Invalid JSON payload on {topic}")
@@ -1465,7 +1578,27 @@ class JackeryDataCoordinator:
                 except Exception as e:
                     _LOGGER.warning(f"Error polling device status (Type 25): {e}")
 
-                # 2. Poll Sub-devices (Type 100) - CTs (2), SmartMeter 3P (3), Plugs (6)
+                # 2. Poll full system state (Type 105) every 30 cycles ≈ 5 min
+                self._poll_105_counter += 1
+                if self._poll_105_counter >= 30:
+                    self._poll_105_counter = 0
+                    try:
+                        payload_105 = {
+                            "type": 105,
+                            "eventId": 0,
+                            "messageId": random.randint(1000, 9999),
+                            "ts": ts,
+                            "token": self._token,
+                            "body": None,
+                        }
+                        await ha_mqtt.async_publish(
+                            self.hass, action_topic, json.dumps(payload_105), 0, False
+                        )
+                        _LOGGER.debug("Sent type-105 poll (full system state)")
+                    except Exception as e:
+                        _LOGGER.warning("Error polling full system state (Type 105): %s", e)
+
+                # 3. Poll Sub-devices (Type 100) - CTs (2), SmartMeter 3P (3), Plugs (6)
                 try:
                     for dev_type in [2, 3, 6]:
                         payload_100 = {
