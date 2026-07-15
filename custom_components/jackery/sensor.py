@@ -528,6 +528,32 @@ SENSORS = {
         "device_class": SensorDeviceClass.POWER,
         "state_class": SensorStateClass.MEASUREMENT,
     },
+
+    # Netzwerk-Diagnostik
+    "wifi_ssid": {
+        "json_key": "wname",
+        "name": "WiFi SSID",
+        "unit": None,
+        "icon": "mdi:wifi",
+        "device_class": None,
+        "state_class": None,
+    },
+    "ethernet_ip": {
+        "json_key": "eip",
+        "name": "Ethernet IP",
+        "unit": None,
+        "icon": "mdi:ip-network",
+        "device_class": None,
+        "state_class": None,
+    },
+    "device_capability": {
+        "json_key": "ability",
+        "name": "Device Capability",
+        "unit": None,
+        "icon": "mdi:chip",
+        "device_class": None,
+        "state_class": None,
+    },
 }
 
 # 子设备传感器配置
@@ -711,6 +737,31 @@ SUBDEVICE_SENSORS = {
             "state_class": SensorStateClass.TOTAL_INCREASING,
             "icon": "mdi:lightning-bolt",
             "scale": 0.01,
+        },
+        # Diagnostik-Sensoren
+        "comm_mode": {
+            "key": "commMode",
+            "name": "Communication Mode",
+            "unit": None,
+            "device_class": None,
+            "state_class": None,
+            "icon": "mdi:network",
+        },
+        "comm_state": {
+            "key": "commState",
+            "name": "Communication State",
+            "unit": None,
+            "device_class": None,
+            "state_class": None,
+            "icon": "mdi:connection",
+        },
+        "ip_address": {
+            "key": "wip",
+            "name": "IP Address",
+            "unit": None,
+            "device_class": None,
+            "state_class": None,
+            "icon": "mdi:ip",
         },
     },
     # Expansion battery (e.g. BP2500, devType=1, subType=0)
@@ -1345,9 +1396,9 @@ class JackeryDataCoordinator:
                 except Exception as e:
                     _LOGGER.warning(f"Error polling device status (Type 25): {e}")
 
-                # 2. Poll Sub-devices (Type 100) - CTs (2) and Plugs (6)
+                # 2. Poll Sub-devices (Type 100) - CTs (2), SmartMeter 3P (3), Plugs (6)
                 try:
-                    for dev_type in [2, 6]:
+                    for dev_type in [2, 3, 6]:
                         payload_100 = {
                             "type": 100,
                             "eventId": 0,
@@ -1623,10 +1674,10 @@ class JackerySubDeviceSensor(SensorEntity):
             try:
                 scale = self._sensor_config.get("scale", 1)
                 self._attr_native_value = float(val) * scale
-                self._attr_available = True
-                self.async_write_ha_state()
             except (TypeError, ValueError):
-                pass
+                self._attr_native_value = val
+            self._attr_available = True
+            self.async_write_ha_state()
             return
 
         val = my_plug.get(target_key)

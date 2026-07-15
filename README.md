@@ -119,9 +119,9 @@ entities:
     icon: mdi:transmission-tower
   battery:
     entity:
-      consumption: sensor.jackery_battery_charge_power
-      production: sensor.jackery_battery_discharge_power
-    state_of_charge: sensor.jackery_battery_soc
+      consumption: sensor.jackery_battery_charge_power_calc
+      production: sensor.jackery_battery_discharge_power_calc
+    state_of_charge: sensor.jackery_bms_soc
     name: Battery
     icon: mdi:battery
   home:
@@ -140,6 +140,46 @@ energy_date_selection: false
 ```
 
 ![demo](img/demo.png)
+
+> **Note on battery sensors:**
+> `sensor.jackery_battery_charge_power` reports the charge power of the main SolarVault unit only.
+> `sensor.jackery_battery_charge_power_calc` sums the charge power across all connected battery units (e.g. SolarVault 3 Pro Max + BP2500) and is the correct sensor for multi-unit setups.
+> `sensor.jackery_bms_soc` reports the combined BMS state of charge across the entire battery stack and should be preferred over `sensor.jackery_battery_soc` for multi-unit setups.
+
+#### Alternative: power-flow-card-plus with a signed net sensor
+
+If `energy-flow-card-plus` shows Wh instead of W in your setup, use [`power-flow-card-plus`](https://github.com/flixlix/power-flow-card-plus) instead.
+It requires a single signed battery power sensor (positive = discharging, negative = charging).
+Create a **Template sensor helper** in Home Assistant with this formula:
+
+```
+{{ states('sensor.jackery_battery_discharge_power_calc') | float(0) - states('sensor.jackery_battery_charge_power_calc') | float(0) }}
+```
+
+Then use it in your card config:
+
+```yaml
+type: custom:power-flow-card-plus
+entities:
+  solar:
+    entity: sensor.jackery_solar_power
+    name: Solar
+    icon: mdi:solar-power
+  grid:
+    entity: sensor.jackery_grid_import_power
+    entity_production: sensor.jackery_grid_export_power
+    name: Grid
+    icon: mdi:transmission-tower
+  battery:
+    entity: sensor.jackery_battery_net_power_signed   # your template sensor
+    state_of_charge: sensor.jackery_bms_soc
+    name: Battery
+    icon: mdi:battery
+  home:
+    entity: sensor.jackery_home_power
+    name: Home
+    icon: mdi:home-lightning-bolt
+```
 
 ---
 
