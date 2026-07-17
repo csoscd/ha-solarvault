@@ -48,6 +48,18 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
+            JackeryOptimisticSwitch(
+                key="offGridDown",
+                name="Off-Grid Fallback",
+                coordinator=coordinator,
+                config_entry_id=config_entry.entry_id,
+            ),
+            JackeryFollowMeterSwitch(
+                key="isFollowMeterPw",
+                name="Follow Meter Power (Zähler folgen)",
+                coordinator=coordinator,
+                config_entry_id=config_entry.entry_id,
+            ),
         ]
     )
 
@@ -203,3 +215,47 @@ class JackeryMainSwitch(SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._coordinator.async_control_main_device({self._key: 0})
+
+
+class JackeryOptimisticSwitch(JackeryMainSwitch):
+    """Main device switch with optimistic state updates (cmd=5)."""
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self._attr_is_on = True
+        self.async_write_ha_state()
+        await self._coordinator.async_control_main_device({self._key: 1})
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self._attr_is_on = False
+        self.async_write_ha_state()
+        await self._coordinator.async_control_main_device({self._key: 0})
+
+
+class JackeryFollowMeterSwitch(JackeryOptimisticSwitch):
+    """'Zähler folgen' switch — only available when workModel=4 (Benutzerdefiniert).
+
+    Writing isFollowMeterPw=1 activates Follow-Meter mode within workModel=4.
+    This entity becomes unavailable when workMode != 4 to signal that the setting
+    has no effect in other operating modes.
+    """
+
+    def _update_from_coordinator(self, data: dict) -> None:
+        work_mode = data.get("workMode")
+        if work_mode is not None:
+            try:
+                if int(work_mode) != 4:
+                    self._attr_available = False
+                    self.async_write_ha_state()
+                    return
+                self._attr_available = True
+            except (TypeError, ValueError):
+                pass
+
+        if self._key not in data:
+            return
+        val = data.get(self._key)
+        if val is None:
+            return
+        self._attr_is_on = bool(int(val))
+        self._attr_available = True
+        self.async_write_ha_state()

@@ -40,18 +40,26 @@
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
 | Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
 | Device Status | `stat` | Host operation status (normal / waiting / alarm / fault / standby / low_power) |
-| Work Mode | `workMode` | Current energy work mode (sent in type-107 incremental updates) |
 | OnGrid Status | `ongridStat` | Grid-tie status: on_grid / off_grid |
 | CT Status | `ctStat` | CT meter connection status: online / offline |
 | Grid Meter Link | `gridSate` | Grid meter link health: normal / abnormal |
 
 #### New control entities (SolarVault 3 Pro Max)
 
-| Entity | MQTT field | Range | Description |
-|---|---|---|---|
-| SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
-| Auto Standby Mode | `autoStandby` | invalid / standby / on | Dropdown selector – replaces the numeric sensor. Controls auto-standby behaviour. |
-| Reboot | – | – | Button entity that sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
+| Entity type | Entity | MQTT field | Range / Options | Description |
+|---|---|---|---|---|
+| Number | SOC Charge Limit | `socChgLimit` | 0–100 % | Maximum SOC the battery charges to |
+| Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
+| Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–10000 W | Maximum OnGrid feed-in power (Einspeiseleistung); app offers 800 W / 2500 W |
+| Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
+| Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
+| Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
+| Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
+| Switch | Auto Standby Allowed | `isAutoStandby` | on / off | Whether auto-standby is permitted |
+| Switch | EPS Switch | `swEps` | on / off | Enable/disable EPS (off-grid) output |
+| Switch | Off-Grid Fallback | `offGridDown` | on / off | Enable off-grid fallback mode |
+| Switch | Follow Meter Power (Zähler folgen) | `isFollowMeterPw` | on / off | Sub-mode within Benutzerdefiniert (workModel=4): device tracks the SmartMeter to achieve net-zero grid exchange. **Only available when Work Mode = Benutzerdefiniert.** |
+| Button | Reboot | – | – | Sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
 
 #### SmartMeter 3P fix (HTO907A, devType=3, subType=5)
 

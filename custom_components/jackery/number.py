@@ -4,6 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -18,13 +19,17 @@ _LOGGER = logging.getLogger(__name__)
 NUMBERS = {
     "socChgLimit": {"name": "SOC Charge Limit", "min": 0, "max": 100, "step": 1},
     "socDischgLimit": {"name": "SOC Discharge Limit", "min": 0, "max": 100, "step": 1},
-    "maxOutPw": {"name": "Max Output Power (OnGrid)", "min": 0, "max": 10000, "step": 10},
-    "autoStandby": {"name": "Auto Standby Mode", "min": 0, "max": 2, "step": 1},
+    "maxOutPw": {"name": "Max Feed-in Power (OnGrid)", "min": 0, "max": 10000, "step": 10},
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
     # Exact purpose not fully determined: Storm Warning uses cloud, not this field.
     # Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold.
     # Set to 0 to deactivate.
     "socForceChg": {"name": "SOC Force Charge Target", "min": 0, "max": 100, "step": 1},
+    # defaultPw: fallback output power for Benutzerdefiniert mode (workModel=4).
+    # Active when no time-based schedule entry is in effect.
+    # App caps at 200 W with 10 W steps. Schedule slots (cloud-only) can reach 800 W.
+    "defaultPw": {"name": "Default Output Power", "min": 0, "max": 200, "step": 10,
+                  "unit": UnitOfPower.WATT, "optimistic": True},
 }
 
 
@@ -50,6 +55,8 @@ async def async_setup_entry(
                 step=cfg["step"],
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
+                unit=cfg.get("unit"),
+                optimistic=cfg.get("optimistic", False),
             )
         )
 
@@ -69,9 +76,12 @@ class JackeryMainNumber(NumberEntity):
         step: float,
         coordinator: "JackeryDataCoordinator",
         config_entry_id: str,
+        unit: str | None = None,
+        optimistic: bool = False,
     ) -> None:
         self._key = key
         self._coordinator = coordinator
+        self._optimistic = optimistic
         self._attr_name = name
         self._attr_unique_id = f"jackery_main_{key}"
         self._attr_has_entity_name = True
@@ -79,6 +89,8 @@ class JackeryMainNumber(NumberEntity):
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = step
+        if unit is not None:
+            self._attr_native_unit_of_measurement = unit
         self._attr_device_info = {
             "identifiers": {(DOMAIN, config_entry_id)},
             "name": "Jackery",
@@ -112,4 +124,7 @@ class JackeryMainNumber(NumberEntity):
             pass
 
     async def async_set_native_value(self, value: float) -> None:
+        if self._optimistic:
+            self._attr_native_value = value
+            self.async_write_ha_state()
         await self._coordinator.async_control_main_device({self._key: int(value)})

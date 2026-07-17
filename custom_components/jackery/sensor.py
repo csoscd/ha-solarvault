@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTemperature, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTemperature, UnitOfTime, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -564,14 +564,6 @@ SENSORS = {
         "device_class": None,
         "state_class": None,
     },
-    "work_mode": {
-        "json_key": "workMode",
-        "name": "Work Mode",
-        "unit": None,
-        "icon": "mdi:cog-outline",
-        "device_class": None,
-        "state_class": None,
-    },
     "ongrid_status": {
         "json_key": "ongridStat",
         "name": "OnGrid Status",
@@ -678,26 +670,10 @@ SENSORS = {
         "device_class": SensorDeviceClass.POWER,
         "state_class": SensorStateClass.MEASUREMENT,
     },
-    "is_follow_meter_power": {
-        "json_key": "isFollowMeterPw",
-        "name": "Follow Meter Power",
-        "unit": None,
-        "icon": "mdi:meter-electric-outline",
-        "device_class": None,
-        "state_class": None,
-    },
-    "off_grid_fallback": {
-        "json_key": "offGridDown",
-        "name": "Off-Grid Fallback",
-        "unit": None,
-        "icon": "mdi:power-plug-off-outline",
-        "device_class": None,
-        "state_class": None,
-    },
     "off_grid_time": {
         "json_key": "offGridTime",
         "name": "Off-Grid Switch Time",
-        "unit": "s",
+        "unit": UnitOfTime.SECONDS,
         "icon": "mdi:timer-outline",
         "device_class": None,
         "state_class": None,

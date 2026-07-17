@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] – 2026-07-17
+
+### Added
+- **Work Mode select** (`workModel`): dropdown to switch between Eigenverbrauch (2), Benutzerdefiniert (4), Tarifmodus (7), KI-Modus (8). State populated from type-106 poll. Writes use `workModel` field via type-1/cmd=5. Replaces the former read-only `work_mode` sensor.
+- **Default Output Power number** (`defaultPw`): slider 0–200 W, 10 W steps. Fallback power for Benutzerdefiniert mode when no schedule entry is active. Optimistic updates (state reflects write immediately). App limit: 200 W; schedule slots (cloud-only) can reach 800 W.
+- **Off-Grid Fallback switch** (`offGridDown`): enables off-grid fallback mode. Optimistic updates.
+- **Follow Meter Power switch** (`isFollowMeterPw`, "Zähler folgen"): sub-mode within Benutzerdefiniert (workModel=4). When on, the SolarVault tracks the SmartMeter to achieve net-zero grid exchange. Entity becomes **unavailable** automatically when Work Mode ≠ Benutzerdefiniert.
+
+### Changed
+- `maxOutPw` number renamed from "Max Output Power (OnGrid)" to "Max Feed-in Power (OnGrid)" — confirmed as Einspeiseleistung (grid feed-in power limit), not EPS socket output.
+- `off_grid_time` sensor unit fixed from raw string `"s"` to `UnitOfTime.SECONDS`.
+
+### Removed
+- Read-only `work_mode` sensor (`workMode`) → replaced by Work Mode select.
+- Read-only `is_follow_meter_power` sensor (`isFollowMeterPw`) → replaced by Follow Meter Power switch.
+- Read-only `off_grid_fallback` sensor (`offGridDown`) → replaced by Off-Grid Fallback switch.
+- `autoStandby` number entity (slider 0–2) → removed; the Auto Standby Mode select (added in v1.2.0) already covers this field. Users with automations referencing `number.jackery_main_autostandby` should migrate to `select.jackery_*_auto_standby_select`.
+
+### Notes
+- `workModel` writability confirmed independently by community member pyrots ([issue #5](https://github.com/Jackery-Official/jackery/issues/5)).
+- `offGridTime` is NOT writable via cmd=5 (no cmd=107 ack received in testing); remains read-only sensor.
+- Time-based schedules (Benutzerdefiniert, Tarifmodus) and KI-Modus strategy selection are cloud-only — not accessible via local MQTT.
+
+---
+
 ## [1.2.1] – 2026-07-15
 
 ### Added
