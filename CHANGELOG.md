@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.1] – 2026-07-17
+
+### Fixed
+- **Optimistic state updates reverting after ~10 s**: After writing a new value via the Work Mode select, Off-Grid Fallback switch, Follow Meter Power switch, or Default Output Power number, the coordinator's `_data_cache` still held the old value. Every incoming type-2 message (~10 s) triggered `_distribute_data`, which pushed the stale cached value back to the entity — reverting the optimistic UI state before the next type-106 poll (~5 min) could confirm the write. Fix: `_data_cache` is now updated alongside the optimistic UI state on every write.
+
+---
+
 ## [1.3.0] – 2026-07-17
 
 ### Added
