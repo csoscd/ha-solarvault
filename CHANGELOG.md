@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.3] – 2026-07-17
+
+### Added
+- **Internationalization (i18n)** for all control entities via HA translation system:
+  - `translations/de.json` — German
+  - `translations/en.json` — English
+  - `strings.json` updated to English base (was Chinese from original integration)
+  - Config flow UI now available in English and German
+- Entities translated: Work Mode select, Auto Standby select, all 5 numbers, all 4 switches, reboot button
+
+### Changed
+- **Work Mode select option keys** changed from German strings (`"Eigenverbrauch"`, …) to neutral translation keys (`"self_consumption"`, `"custom"`, `"tariff"`, `"ai"`). HA displays them in the user's language via translations. **Breaking:** automations referencing the old German option values need to be updated to the new keys.
+
+---
+
 ## [1.3.2] – 2026-07-17
 
 ### Changed

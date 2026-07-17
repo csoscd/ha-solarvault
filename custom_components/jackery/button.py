@@ -38,7 +38,7 @@ class JackeryRebootButton(ButtonEntity):
 
     def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
-        self._attr_name = "Reboot"
+        self._attr_translation_key = "reboot"
         self._attr_icon = "mdi:restart"
         self._attr_device_class = ButtonDeviceClass.RESTART
         self._attr_has_entity_name = True

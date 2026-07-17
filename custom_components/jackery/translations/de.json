@@ -1,0 +1,62 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Jackery konfigurieren",
+                "description": "Jackery-Energiespeicher-Integration einrichten. Hinweis: Die MQTT-Integration muss zuerst konfiguriert sein.",
+                "data": {
+                    "mqtt_host": "MQTT-Host",
+                    "device_sn": "Geräte-SN",
+                    "token": "Token",
+                    "topic_prefix": "MQTT-Topic-Präfix"
+                }
+            }
+        },
+        "error": {
+            "already_configured": "Integration bereits konfiguriert",
+            "mqtt_not_configured": "MQTT-Integration nicht konfiguriert oder nicht verfügbar. Bitte zuerst die MQTT-Integration einrichten: Einstellungen → Geräte & Dienste → Integration hinzufügen → MQTT",
+            "single_instance_allowed": "Nur eine Instanz dieser Integration ist erlaubt"
+        },
+        "abort": {
+            "already_configured": "Integration bereits konfiguriert",
+            "single_instance_allowed": "Nur eine Instanz dieser Integration ist erlaubt"
+        }
+    },
+    "entity": {
+        "select": {
+            "auto_standby": {
+                "name": "Auto-Standby-Modus",
+                "state": {
+                    "invalid": "Deaktiviert",
+                    "standby": "Standby",
+                    "on": "Ein"
+                }
+            },
+            "work_mode": {
+                "name": "Betriebsmodus",
+                "state": {
+                    "self_consumption": "Eigenverbrauch",
+                    "custom": "Benutzerdefiniert",
+                    "tariff": "Tarifmodus",
+                    "ai": "KI-Modus"
+                }
+            }
+        },
+        "number": {
+            "soc_charge_limit": {"name": "SOC-Ladelimit"},
+            "soc_discharge_limit": {"name": "SOC-Entladelimit"},
+            "max_feed_in_power": {"name": "Max. Einspeiseleistung (OnGrid)"},
+            "soc_force_charge": {"name": "SOC-Zwangsladziel"},
+            "default_output_power": {"name": "Standard-Ausgangsleistung"}
+        },
+        "switch": {
+            "auto_standby_allowed": {"name": "Auto-Standby erlaubt"},
+            "eps_switch": {"name": "EPS-Schalter"},
+            "off_grid_fallback": {"name": "Off-Grid-Fallback"},
+            "follow_meter_power": {"name": "Zähler folgen"}
+        },
+        "button": {
+            "reboot": {"name": "Neustart"}
+        }
+    }
+}

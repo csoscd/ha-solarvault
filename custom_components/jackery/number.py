@@ -17,19 +17,34 @@ _LOGGER = logging.getLogger(__name__)
 
 
 NUMBERS = {
-    "socChgLimit": {"name": "SOC Charge Limit", "min": 0, "max": 100, "step": 1},
-    "socDischgLimit": {"name": "SOC Discharge Limit", "min": 0, "max": 100, "step": 1},
-    "maxOutPw": {"name": "Max Feed-in Power (OnGrid)", "min": 0, "max": 10000, "step": 10},
+    "socChgLimit": {
+        "translation_key": "soc_charge_limit",
+        "min": 0, "max": 100, "step": 1,
+    },
+    "socDischgLimit": {
+        "translation_key": "soc_discharge_limit",
+        "min": 0, "max": 100, "step": 1,
+    },
+    "maxOutPw": {
+        "translation_key": "max_feed_in_power",
+        "min": 0, "max": 10000, "step": 10,
+    },
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
     # Exact purpose not fully determined: Storm Warning uses cloud, not this field.
     # Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold.
     # Set to 0 to deactivate.
-    "socForceChg": {"name": "SOC Force Charge Target", "min": 0, "max": 100, "step": 1},
+    "socForceChg": {
+        "translation_key": "soc_force_charge",
+        "min": 0, "max": 100, "step": 1,
+    },
     # defaultPw: fallback output power for Benutzerdefiniert mode (workModel=4).
     # Active when no time-based schedule entry is in effect.
     # App caps at 200 W with 10 W steps. Schedule slots (cloud-only) can reach 800 W.
-    "defaultPw": {"name": "Default Output Power", "min": 0, "max": 200, "step": 10,
-                  "unit": UnitOfPower.WATT, "optimistic": True},
+    "defaultPw": {
+        "translation_key": "default_output_power",
+        "min": 0, "max": 200, "step": 10,
+        "unit": UnitOfPower.WATT, "optimistic": True,
+    },
 }
 
 
@@ -49,12 +64,12 @@ async def async_setup_entry(
         entities.append(
             JackeryMainNumber(
                 key=key,
-                name=cfg["name"],
                 min_value=cfg["min"],
                 max_value=cfg["max"],
                 step=cfg["step"],
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
+                translation_key=cfg.get("translation_key"),
                 unit=cfg.get("unit"),
                 optimistic=cfg.get("optimistic", False),
             )
@@ -70,25 +85,26 @@ class JackeryMainNumber(NumberEntity):
     def __init__(
         self,
         key: str,
-        name: str,
         min_value: float,
         max_value: float,
         step: float,
         coordinator: "JackeryDataCoordinator",
         config_entry_id: str,
+        translation_key: str | None = None,
         unit: str | None = None,
         optimistic: bool = False,
     ) -> None:
         self._key = key
         self._coordinator = coordinator
         self._optimistic = optimistic
-        self._attr_name = name
         self._attr_unique_id = f"jackery_main_{key}"
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.SLIDER
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = step
+        if translation_key:
+            self._attr_translation_key = translation_key
         if unit is not None:
             self._attr_native_unit_of_measurement = unit
         self._attr_device_info = {

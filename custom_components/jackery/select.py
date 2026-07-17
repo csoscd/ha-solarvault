@@ -24,12 +24,12 @@ _AUTO_STANDBY_OPTIONS: dict[str, int] = {
 }
 _AUTO_STANDBY_VALUE_TO_OPTION: dict[int, str] = {v: k for k, v in _AUTO_STANDBY_OPTIONS.items()}
 
-# workModel: operating mode
+# workModel: operating mode (keys are translation keys, values are device integers)
 _WORK_MODE_OPTIONS: dict[int, str] = {
-    2: "Eigenverbrauch",
-    4: "Benutzerdefiniert",
-    7: "Tarifmodus",
-    8: "KI-Modus",
+    2: "self_consumption",
+    4: "custom",
+    7: "tariff",
+    8: "ai",
 }
 _WORK_MODE_OPTION_TO_VALUE: dict[str, int] = {v: k for k, v in _WORK_MODE_OPTIONS.items()}
 
@@ -57,7 +57,7 @@ class JackeryAutoStandbySelect(SelectEntity):
     def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
         self._config_entry_id = config_entry_id
-        self._attr_name = "Auto Standby Mode"
+        self._attr_translation_key = "auto_standby"
         self._attr_icon = "mdi:power-sleep"
         self._attr_options = list(_AUTO_STANDBY_OPTIONS.keys())
         self._attr_has_entity_name = True
@@ -106,11 +106,12 @@ class JackeryWorkModeSelect(SelectEntity):
 
     Type-106 reports this as `workModel`; the coordinator aliases it to `workMode`.
     Writes use `workModel` as the device field name.
+    Option keys are translation keys (e.g. "self_consumption") mapped to device integers.
     """
 
     def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
-        self._attr_name = "Work Mode"
+        self._attr_translation_key = "work_mode"
         self._attr_icon = "mdi:cog-outline"
         self._attr_options = list(_WORK_MODE_OPTIONS.values())
         self._attr_has_entity_name = True

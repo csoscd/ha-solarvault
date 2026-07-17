@@ -38,25 +38,25 @@ async def async_setup_entry(
         [
             JackeryMainSwitch(
                 key="isAutoStandby",
-                name="Auto Standby Allowed",
+                translation_key="auto_standby_allowed",
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
             JackeryMainSwitch(
                 key="swEps",
-                name="EPS Switch",
+                translation_key="eps_switch",
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
             JackeryOptimisticSwitch(
                 key="offGridDown",
-                name="Off-Grid Fallback",
+                translation_key="off_grid_fallback",
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
             JackeryFollowMeterSwitch(
                 key="isFollowMeterPw",
-                name="Follow Meter Power (Zähler folgen)",
+                translation_key="follow_meter_power",
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
@@ -172,15 +172,19 @@ class JackeryMainSwitch(SwitchEntity):
     def __init__(
         self,
         key: str,
-        name: str,
         coordinator: "JackeryDataCoordinator",
         config_entry_id: str,
+        translation_key: str | None = None,
+        name: str | None = None,
     ) -> None:
         self._key = key
         self._coordinator = coordinator
-        self._attr_name = name
         self._attr_unique_id = f"jackery_main_{key}"
         self._attr_has_entity_name = True
+        if translation_key:
+            self._attr_translation_key = translation_key
+        elif name:
+            self._attr_name = name
         self._attr_device_info = {
             "identifiers": {(DOMAIN, config_entry_id)},
             "name": "Jackery",
