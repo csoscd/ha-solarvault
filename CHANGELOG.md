@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.5] – 2026-07-17
+
+### Fixed
+- **`commMode` sensor showed "Cloud (Relay)" even when SmartMeter was in LAN mode**: The MQTT
+  field `commMode` is 1-based (1=LAN, 2=Cloud), but the ENUM options list was 0-indexed, so
+  `commMode=1` mapped to `options[1]` = `"cloud"` instead of `options[0]` = `"lan"`. Fixed by
+  adding `options_offset: 1` to the sensor config; the update handler now subtracts the offset
+  before indexing. `commState` is unaffected (0-based, offset=0).
+
+---
+
 ## [1.3.4] – 2026-07-17
 
 ### Added

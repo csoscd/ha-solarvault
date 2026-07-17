@@ -871,6 +871,7 @@ SUBDEVICE_SENSORS = {
             "state_class": None,
             "icon": "mdi:network",
             "options": ["lan", "cloud"],
+            "options_offset": 1,  # commMode is 1-based: 1=LAN, 2=Cloud
         },
         "comm_state": {
             "key": "commState",
@@ -1862,10 +1863,13 @@ class JackerySubDeviceSensor(SensorEntity):
                 return
             options = self._sensor_config.get("options")
             if options is not None:
-                # ENUM sensor: map integer index to option key
+                # ENUM sensor: map integer value to option key.
+                # options_offset shifts 1-based MQTT values (e.g. commMode: 1=LAN, 2=Cloud)
+                # to 0-based list indices. Default offset=0 for 0-based values (commState).
                 try:
-                    idx = int(float(val))
-                    self._attr_native_value = options[idx] if idx < len(options) else str(idx)
+                    offset = self._sensor_config.get("options_offset", 0)
+                    idx = int(float(val)) - offset
+                    self._attr_native_value = options[idx] if 0 <= idx < len(options) else str(val)
                 except (TypeError, ValueError, IndexError):
                     self._attr_native_value = str(val)
             else:
