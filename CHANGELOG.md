@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.4] – 2026-07-17
+
+### Added
+- **Complete sensor translations** (EN + DE) for all 95 sensor entities via HA translation system:
+  - 70 main device sensors (battery, solar, grid, EPS, energy flow, diagnostics, type-106 fields)
+  - 25 sub-device sensors (SmartMeter 3P phases/energy, CT, plug, expansion battery)
+  - `JackerySensor` and `JackerySubDeviceSensor` now use `_attr_translation_key` instead of hardcoded `_attr_name`
+- **`commMode` / `commState` as ENUM sensors** with human-readable state labels:
+  - `commMode`: `1` → "LAN", `2` → "Cloud (Relay)" (with DE/EN translations)
+  - `commState`: `0` → "Offline", `1` → "Online" (with DE/EN translations)
+
+### Fixed
+- **Integer status sensors showed float values** (e.g. `1.0` instead of `1`): All sensors without
+  unit and without scale factor now store integer values. Affected: Battery Count, Battery State,
+  Device Status, OnGrid Status, CT Status, Grid Meter Link, EPS State, EPS Switch Status,
+  Ethernet Connected, and all other unitless numeric fields.
+
+### Notes
+- After updating via HACS, an **HA restart** is required (not just integration reload) for all
+  new translation files to be loaded. A browser hard-refresh (Ctrl+Shift+R) may additionally
+  be needed if cached translations show in the wrong language.
+- Total translated entities: 107 (70 main sensors + 25 sub-device sensors + 12 control entities)
+
+---
+
 ## [1.3.3] – 2026-07-17
 
 ### Added

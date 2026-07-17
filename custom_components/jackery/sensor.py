@@ -867,17 +867,19 @@ SUBDEVICE_SENSORS = {
             "key": "commMode",
             "name": "Communication Mode",
             "unit": None,
-            "device_class": None,
+            "device_class": SensorDeviceClass.ENUM,
             "state_class": None,
             "icon": "mdi:network",
+            "options": ["lan", "cloud"],
         },
         "comm_state": {
             "key": "commState",
             "name": "Communication State",
             "unit": None,
-            "device_class": None,
+            "device_class": SensorDeviceClass.ENUM,
             "state_class": None,
             "icon": "mdi:connection",
+            "options": ["offline", "online"],
         },
         "ip_address": {
             "key": "wip",
@@ -1256,6 +1258,7 @@ class JackeryDataCoordinator:
                             coordinator=self,
                             config_entry_id=self.config_entry_id,
                             use_cts=is_ct,
+                            sensor_group=sensor_group,
                         )
                         new_entities.append(entity)
 
@@ -1294,6 +1297,7 @@ class JackeryDataCoordinator:
                         coordinator=self,
                         config_entry_id=self.config_entry_id,
                         use_expansion=True,
+                        sensor_group="expansion_battery",
                     )
                     new_entities.append(entity)
         if new_entities and self.add_entities_callback:
@@ -1662,7 +1666,7 @@ class JackerySensor(SensorEntity):
         self._coordinator = coordinator
         self._config = SENSORS[sensor_id]
 
-        self._attr_name = self._config["name"]
+        self._attr_translation_key = sensor_id
         self._attr_native_unit_of_measurement = self._config["unit"]
         self._attr_icon = self._config["icon"]
         self._attr_device_class = self._config["device_class"]
@@ -1732,7 +1736,11 @@ class JackerySensor(SensorEntity):
         else:
             scale = self._config.get("scale", 1)
             try:
-                self._attr_native_value = float(value) * scale
+                raw = float(value) * scale
+                if self._config.get("unit") is None and scale == 1:
+                    self._attr_native_value = int(raw) if raw == int(raw) else raw
+                else:
+                    self._attr_native_value = raw
             except (TypeError, ValueError):
                  self._attr_native_value = value
 
@@ -1760,6 +1768,7 @@ class JackerySubDeviceSensor(SensorEntity):
         config_entry_id: str,
         use_cts: bool = False,
         use_expansion: bool = False,
+        sensor_group: str = "",
     ) -> None:
         """Initialize."""
         self._plug_sn = plug_sn
@@ -1777,13 +1786,15 @@ class JackerySubDeviceSensor(SensorEntity):
         else:
             device_name = "Plug"
 
-        # Entity Name: "Power", "Energy", etc.
-        self._attr_name = self._sensor_config["name"]
-        
+        translation_key = f"{sensor_group}_{sensor_key}" if sensor_group else sensor_key
+        self._attr_translation_key = translation_key
+
         self._attr_native_unit_of_measurement = self._sensor_config.get("unit")
         self._attr_icon = self._sensor_config.get("icon")
         self._attr_device_class = self._sensor_config.get("device_class")
         self._attr_state_class = self._sensor_config.get("state_class")
+        if self._sensor_config.get("options"):
+            self._attr_options = self._sensor_config["options"]
         
         # Unique ID: jackery_ct_{sn}_power, jackery_plug_{sn}_energy, etc.
         safe_key = self._sensor_key.replace("_", "") # e.g. energy_import -> energyimport
@@ -1849,11 +1860,24 @@ class JackerySubDeviceSensor(SensorEntity):
             val = my_plug.get(target_key)
             if val is None:
                 return
-            try:
+            options = self._sensor_config.get("options")
+            if options is not None:
+                # ENUM sensor: map integer index to option key
+                try:
+                    idx = int(float(val))
+                    self._attr_native_value = options[idx] if idx < len(options) else str(idx)
+                except (TypeError, ValueError, IndexError):
+                    self._attr_native_value = str(val)
+            else:
                 scale = self._sensor_config.get("scale", 1)
-                self._attr_native_value = float(val) * scale
-            except (TypeError, ValueError):
-                self._attr_native_value = val
+                try:
+                    raw = float(val) * scale
+                    if self._sensor_config.get("unit") is None and scale == 1:
+                        self._attr_native_value = int(raw) if raw == int(raw) else raw
+                    else:
+                        self._attr_native_value = raw
+                except (TypeError, ValueError):
+                    self._attr_native_value = val
             self._attr_available = True
             self.async_write_ha_state()
             return
@@ -1938,9 +1962,12 @@ class JackerySubDeviceSensor(SensorEntity):
         
         if val is not None:
             try:
-                native_val = float(val)
                 scale = self._sensor_config.get("scale", 1)
-                self._attr_native_value = native_val * scale
+                raw = float(val) * scale
+                if self._sensor_config.get("unit") is None and scale == 1:
+                    self._attr_native_value = int(raw) if raw == int(raw) else raw
+                else:
+                    self._attr_native_value = raw
                 self._attr_available = True
                 self.async_write_ha_state()
             except (TypeError, ValueError):
