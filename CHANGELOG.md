@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.6] – 2026-07-17
+
+### Fixed
+- **Expansion battery sensors permanently unavailable after ~60 s**: Energy data for BP2500 units
+  arrives via type-23 messages (~every 10 min), but the offline detection marked sub-devices
+  unavailable after 60 s without a type-101 update. Two-part fix:
+  1. `_subdevice_last_seen[sn]` is now updated in the type-23 handler whenever an expansion
+     battery reports data.
+  2. Offline timeout for expansion battery SNs raised from 60 s to 900 s (15 min), matching
+     the ~10 min type-23 cadence with a safety margin.
+
+---
+
 ## [1.3.5] – 2026-07-17
 
 ### Fixed

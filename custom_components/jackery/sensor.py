@@ -961,6 +961,7 @@ class JackeryDataCoordinator:
         self._known_plugs = set() # Set of known plug SNs
         self._subdevice_missing_since = {} # {sn: timestamp} for deletion delay
         self._subdevice_last_seen: dict[str, float] = {}  # {sn: timestamp} for offline detection
+        self._expansion_battery_sns: set[str] = set()  # SNs with slow update cadence (~10 min)
         self._poll_105_counter: int = 2  # start at threshold-1 so type-105 fires on first cycle
         self.add_entities_callback = None # Callback to add new entities
         self.add_switch_entities_callback = None # Callback to add new switch entities
@@ -1074,6 +1075,8 @@ class JackeryDataCoordinator:
                         if device_sn_in_body not in exp_bats:
                             exp_bats[device_sn_in_body] = {}
                         exp_bats[device_sn_in_body].update(body)
+                        # Update last_seen so offline detection doesn't mark them unavailable
+                        self._subdevice_last_seen[device_sn_in_body] = time.time()
                         self._check_for_new_expansion_batteries()
                     else:
                         # Find and update sub-device in cache (CTs, SmartMeter)
@@ -1184,7 +1187,9 @@ class JackeryDataCoordinator:
             # During the first 60s after start, don't mark offline (device might not have reported yet)
             if last_seen == 0 and (now - self._start_time) < 60:
                 continue
-            is_available = last_seen > 0 and (now - last_seen) <= 60
+            # Expansion batteries report only via type-23 (~10 min cadence) → use 15 min timeout
+            offline_timeout = 900 if sn in self._expansion_battery_sns else 60
+            is_available = last_seen > 0 and (now - last_seen) <= offline_timeout
             for sensor_id, entity in self._sensors.items():
                 if f"_{sn}_" in sensor_id or sensor_id.endswith(f"_{sn}"):
                     if entity.available != is_available:
@@ -1287,6 +1292,7 @@ class JackeryDataCoordinator:
         for sn in exp_bats:
             if sn not in self._known_plugs:
                 self._known_plugs.add(sn)
+                self._expansion_battery_sns.add(sn)
                 _LOGGER.info(f"Discovered expansion battery: {sn}")
                 group_config = SUBDEVICE_SENSORS.get("expansion_battery", {})
                 for sensor_key, sensor_cfg in group_config.items():
