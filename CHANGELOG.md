@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.9] – 2026-07-17
+
+### Fixed
+
+- **Expansion battery sensors deleted every ~60 s (root cause fix)**: The sub-device deletion
+  timer (step 1/2 in `_check_for_new_plugs`) checked whether each known SN was present in the
+  current type-101 message. Expansion batteries appear exclusively in type-23 messages (~10 min
+  cadence), never in type-101. So every incoming type-101 started the 60 s deletion countdown
+  for the battery SN. After ~60 s, `entity.async_remove(force_remove=True)` was called — the
+  entity disappeared from HA entirely ("Sensor nicht verfügbar"). The next type-23 recreated it,
+  the next type-101 started the timer again — creating a continuous create/delete cycle.
+
+  Fix: expansion battery SNs (tracked in `_expansion_battery_sns`) are now explicitly excluded
+  from both the deletion-timer start (step 1) and the deletion execution (step 2).
+
+  Note: v1.3.8 fixed a separate but related issue (null-value cache corruption) and is still
+  included. This release contains both fixes.
+
+---
+
 ## [1.3.8] – 2026-07-17
 
 ### Fixed

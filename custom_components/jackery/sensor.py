@@ -1215,6 +1215,8 @@ class JackeryDataCoordinator:
                 del self._subdevice_missing_since[sn]
 
         for sn in self._known_plugs:
+            if sn in self._expansion_battery_sns:
+                continue  # expansion batteries appear in type-23, not type-101 — never subject to deletion timer
             if sn not in current_sns:
                 if sn not in self._subdevice_missing_since:
                     self._subdevice_missing_since[sn] = now
@@ -1225,7 +1227,9 @@ class JackeryDataCoordinator:
             if sn not in self._known_plugs:
                 del self._subdevice_missing_since[sn]
                 continue
-            
+            if sn in self._expansion_battery_sns:
+                del self._subdevice_missing_since[sn]
+                continue
             if sn in current_sns:
                 del self._subdevice_missing_since[sn]
                 continue
