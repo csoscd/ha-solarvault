@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.8] – 2026-07-17
+
+### Fixed
+
+- **Expansion battery sensors showing "null kWh" in HA history charts**: Two-part fix:
+  1. **Null-value filter in type-23 cache**: Devices occasionally send `null` for `inEgy`/`outEgy`
+     fields (e.g. during a restart or transient error). Previously these overwrote real cached
+     values with `None`. `_update_from_coordinator` already guarded against writing `None` to
+     `_attr_native_value`, but the corrupted cache meant the entity showed its value correctly
+     until HA re-evaluated the state. The type-23 handler now only updates cached fields that
+     have non-`null` values, preserving previously received real data.
+  2. **Pre-initialization of entity values on creation**: When an expansion battery entity is
+     created for the first time (on discovery via type-23), it now reads the current cache and
+     pre-sets `_attr_native_value` before being added to HA. Previously, the entity started with
+     `_attr_native_value = None` (HA state: "unknown") and only got its value on the next MQTT
+     update cycle — briefly showing "null kWh" in charts. If no real cached value is available
+     at creation time, the entity starts as "unavailable" (chart gap) rather than "unknown"
+     (null data point).
+
+---
+
 ## [1.3.7] – 2026-07-17
 
 ### Changed

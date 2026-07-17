@@ -1074,7 +1074,13 @@ class JackeryDataCoordinator:
                         exp_bats = self._data_cache.setdefault("expansion_batteries", {})
                         if device_sn_in_body not in exp_bats:
                             exp_bats[device_sn_in_body] = {}
-                        exp_bats[device_sn_in_body].update(body)
+                        # Only update with non-null values to preserve previously cached real data.
+                        # Devices occasionally send null for energy fields (e.g. during a restart);
+                        # overwriting with null would cause sensors to show "unknown" until the
+                        # next type-23 arrives (~10 min later).
+                        for k, v in body.items():
+                            if v is not None:
+                                exp_bats[device_sn_in_body][k] = v
                         # Update last_seen so offline detection doesn't mark them unavailable
                         self._subdevice_last_seen[device_sn_in_body] = time.time()
                         self._check_for_new_expansion_batteries()
@@ -1299,6 +1305,7 @@ class JackeryDataCoordinator:
                 self._expansion_battery_sns.add(sn)
                 _LOGGER.info(f"Discovered expansion battery: {sn}")
                 group_config = SUBDEVICE_SENSORS.get("expansion_battery", {})
+                exp_data = exp_bats.get(sn, {})
                 for sensor_key, sensor_cfg in group_config.items():
                     entity = JackerySubDeviceSensor(
                         plug_sn=sn,
@@ -1310,6 +1317,16 @@ class JackeryDataCoordinator:
                         use_expansion=True,
                         sensor_group="expansion_battery",
                     )
+                    # Pre-initialize value so the entity shows the correct reading immediately
+                    # when added to HA rather than briefly showing "unknown" (null in charts).
+                    pre_val = exp_data.get(sensor_cfg.get("key"))
+                    if pre_val is not None:
+                        try:
+                            entity._attr_native_value = float(pre_val) * sensor_cfg.get("scale", 1)
+                        except (TypeError, ValueError):
+                            entity._attr_available = False
+                    else:
+                        entity._attr_available = False
                     new_entities.append(entity)
         if new_entities and self.add_entities_callback:
             self.add_entities_callback(new_entities)
