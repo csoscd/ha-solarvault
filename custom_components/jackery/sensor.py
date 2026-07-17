@@ -1187,9 +1187,13 @@ class JackeryDataCoordinator:
             # During the first 60s after start, don't mark offline (device might not have reported yet)
             if last_seen == 0 and (now - self._start_time) < 60:
                 continue
-            # Expansion batteries report only via type-23 (~10 min cadence) → use 15 min timeout
-            offline_timeout = 900 if sn in self._expansion_battery_sns else 60
-            is_available = last_seen > 0 and (now - last_seen) <= offline_timeout
+            # Expansion batteries report cumulative energy via type-23 (~10 min cadence).
+            # Once data has been received (last_seen > 0), keep available indefinitely —
+            # the value is still valid between updates. Only go unavailable if never seen.
+            if sn in self._expansion_battery_sns:
+                is_available = last_seen > 0
+            else:
+                is_available = last_seen > 0 and (now - last_seen) <= 60
             for sensor_id, entity in self._sensors.items():
                 if f"_{sn}_" in sensor_id or sensor_id.endswith(f"_{sn}"):
                     if entity.available != is_available:

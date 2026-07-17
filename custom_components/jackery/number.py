@@ -25,10 +25,7 @@ NUMBERS = {
         "translation_key": "soc_discharge_limit",
         "min": 0, "max": 100, "step": 1,
     },
-    "maxOutPw": {
-        "translation_key": "max_feed_in_power",
-        "min": 0, "max": 10000, "step": 10,
-    },
+    # maxOutPw moved to select.py (only 800 W / 2500 W are valid app values)
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
     # Exact purpose not fully determined: Storm Warning uses cloud, not this field.
     # Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold.
