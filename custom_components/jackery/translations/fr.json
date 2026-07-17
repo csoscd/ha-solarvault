@@ -40,6 +40,13 @@
                     "tariff": "Mode tarifaire",
                     "ai": "Mode IA"
                 }
+            },
+            "max_feed_in_power": {
+                "name": "Puissance maximale d’injection réseau",
+                "state": {
+                    "w800": "800 W",
+                    "w2500": "2500 W"
+                }
             }
         },
         "number": {
@@ -48,9 +55,6 @@
             },
             "soc_discharge_limit": {
                 "name": "Limite basse du SOC"
-            },
-            "max_feed_in_power": {
-                "name": "Puissance maximale d’injection réseau"
             },
             "soc_force_charge": {
                 "name": "Objectif de charge forcée du SOC"

@@ -40,12 +40,18 @@
                     "tariff": "Tariff Mode",
                     "ai": "AI Mode"
                 }
+            },
+            "max_feed_in_power": {
+                "name": "Max Feed-in Power (OnGrid)",
+                "state": {
+                    "w800": "800 W",
+                    "w2500": "2500 W"
+                }
             }
         },
         "number": {
             "soc_charge_limit": {"name": "SOC Charge Limit"},
             "soc_discharge_limit": {"name": "SOC Discharge Limit"},
-            "max_feed_in_power": {"name": "Max Feed-in Power (OnGrid)"},
             "soc_force_charge": {"name": "SOC Force Charge Target"},
             "default_output_power": {"name": "Default Output Power"}
         },
