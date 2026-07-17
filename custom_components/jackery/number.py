@@ -127,4 +127,5 @@ class JackeryMainNumber(NumberEntity):
         if self._optimistic:
             self._attr_native_value = value
             self.async_write_ha_state()
+            self._coordinator._data_cache[self._key] = int(value)
         await self._coordinator.async_control_main_device({self._key: int(value)})

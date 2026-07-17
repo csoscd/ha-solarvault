@@ -223,11 +223,13 @@ class JackeryOptimisticSwitch(JackeryMainSwitch):
     async def async_turn_on(self, **kwargs: Any) -> None:
         self._attr_is_on = True
         self.async_write_ha_state()
+        self._coordinator._data_cache[self._key] = 1
         await self._coordinator.async_control_main_device({self._key: 1})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         self._attr_is_on = False
         self.async_write_ha_state()
+        self._coordinator._data_cache[self._key] = 0
         await self._coordinator.async_control_main_device({self._key: 0})
 
 

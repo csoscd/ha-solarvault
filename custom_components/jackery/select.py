@@ -151,7 +151,10 @@ class JackeryWorkModeSelect(SelectEntity):
         value = _WORK_MODE_OPTION_TO_VALUE.get(option)
         if value is None:
             return
-        # Optimistic: update UI immediately, device confirms via next type-106 poll
+        # Optimistic: update UI and coordinator cache immediately so periodic
+        # _distribute_data calls don't revert the state before type-106 confirms.
         self._attr_current_option = option
         self.async_write_ha_state()
+        self._coordinator._data_cache["workMode"] = value
+        self._coordinator._data_cache["workModel"] = value
         await self._coordinator.async_control_main_device({"workModel": value})
