@@ -958,7 +958,7 @@ class JackeryDataCoordinator:
         self._known_plugs = set() # Set of known plug SNs
         self._subdevice_missing_since = {} # {sn: timestamp} for deletion delay
         self._subdevice_last_seen: dict[str, float] = {}  # {sn: timestamp} for offline detection
-        self._poll_105_counter: int = 29  # start at 29 so type-105 fires on first cycle
+        self._poll_105_counter: int = 2  # start at threshold-1 so type-105 fires on first cycle
         self.add_entities_callback = None # Callback to add new entities
         self.add_switch_entities_callback = None # Callback to add new switch entities
         self._data_cache = {} # Cache for merged data from status and events
@@ -1554,9 +1554,9 @@ class JackeryDataCoordinator:
                 except Exception as e:
                     _LOGGER.warning(f"Error polling device status (Type 25): {e}")
 
-                # 2. Poll full system state (Type 105) every 30 cycles ≈ 5 min
+                # 2. Poll full system state (Type 105) every 3 cycles ≈ 30 s
                 self._poll_105_counter += 1
-                if self._poll_105_counter >= 30:
+                if self._poll_105_counter >= 3:
                     self._poll_105_counter = 0
                     try:
                         payload_105 = {

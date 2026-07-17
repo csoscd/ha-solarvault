@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.2] – 2026-07-17
+
+### Changed
+- **Type-105 poll interval reduced from 5 min to 30 s** (3 cycles × 10 s). App-initiated mode changes (via Jackery cloud) now appear in HA within ~30 s instead of up to 5 min. Additional traffic: ~75 KB/h — negligible for homelab use.
+
+---
+
 ## [1.3.1] – 2026-07-17
 
 ### Fixed
