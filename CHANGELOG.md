@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.7] – 2026-07-17
+
+### Changed
+- **Max Feed-in Power converted from number to select**: `maxOutPw` is now a dropdown
+  restricted to the two values the Jackery app allows — **800 W** and **2500 W**. The previous
+  free-range slider (0–10000 W) accepted arbitrary values the device does not support.
+  Translations updated for DE, EN and FR.
+
+### Fixed
+- **Expansion battery sensors flapping unavailable**: After the v1.3.6 fix, sensors still went
+  unavailable ~15 min after each type-23 message (900 s timeout). Since expansion batteries
+  report cumulative energy only every ~10 min, the timeout was too aggressive. Once a battery
+  has reported data for the first time, its sensors now stay available indefinitely (until
+  integration restart), matching the nature of slowly-changing cumulative energy values.
+
+### Added
+- **French translation** (`fr.json`) contributed by pyrots — merci!
+
+---
+
 ## [1.3.6] – 2026-07-17
 
 ### Fixed
