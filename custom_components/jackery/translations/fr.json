@@ -5,21 +5,26 @@
                 "title": "Configurer Jackery",
                 "description": "Configurez l’intégration de votre système de stockage d’énergie Jackery. L’intégration MQTT doit être configurée au préalable.",
                 "data": {
-                    "mqtt_host": "Hôte MQTT",
                     "device_sn": "Numéro de série de l’appareil",
                     "token": "Jeton",
                     "topic_prefix": "Préfixe des topics MQTT"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Ré-authentifier Jackery",
+                "description": "L’appareil a signalé un conflit de jeton. Veuillez saisir le jeton actuel pour rétablir la connexion.",
+                "data": {
+                    "token": "Jeton"
+                }
             }
         },
         "error": {
-            "already_configured": "L’intégration est déjà configurée",
-            "mqtt_not_configured": "L’intégration MQTT n’est pas configurée ou n’est pas disponible. Configurez-la d’abord via Paramètres → Appareils et services → Ajouter une intégration → MQTT.",
-            "single_instance_allowed": "Une seule instance de cette intégration est autorisée"
+            "already_configured": "Ce numéro de série d’appareil est déjà configuré",
+            "mqtt_not_configured": "L’intégration MQTT n’est pas configurée ou n’est pas disponible. Configurez-la d’abord via Paramètres → Appareils et services → Ajouter une intégration → MQTT."
         },
         "abort": {
-            "already_configured": "L’intégration est déjà configurée",
-            "single_instance_allowed": "Une seule instance de cette intégration est autorisée"
+            "already_configured": "Ce numéro de série d’appareil est déjà configuré",
+            "reauth_successful": "La ré-authentification a réussi"
         }
     },
     "entity": {
@@ -258,16 +263,36 @@
                 "name": "Capacités de l’appareil"
             },
             "device_status": {
-                "name": "État de l’appareil"
+                "name": "État de l’appareil",
+                "state": {
+                    "normal": "Normal",
+                    "waiting": "En attente",
+                    "alarm": "Alarme",
+                    "fault": "Défaut",
+                    "standby": "Veille",
+                    "low_power": "Puissance faible"
+                }
             },
             "ongrid_status": {
-                "name": "État de la connexion réseau"
+                "name": "État de la connexion réseau",
+                "state": {
+                    "disconnected": "Déconnecté",
+                    "connected": "Connecté"
+                }
             },
             "ct_status": {
-                "name": "État du compteur CT"
+                "name": "État du compteur CT",
+                "state": {
+                    "disconnected": "Déconnecté",
+                    "connected": "Connecté"
+                }
             },
             "grid_meter_link": {
-                "name": "Liaison avec le compteur réseau"
+                "name": "Liaison avec le compteur réseau",
+                "state": {
+                    "not_linked": "Non lié",
+                    "linked": "Lié"
+                }
             },
             "other_load_power": {
                 "name": "Consommation de la maison (estimée)"
@@ -301,6 +326,9 @@
             },
             "off_grid_time": {
                 "name": "Délai de basculement hors réseau"
+            },
+            "max_feed_grid_power": {
+                "name": "Puissance maximale d'injection réseau (système)"
             },
             "ct_3phase_import_total": {
                 "name": "Puissance importée du réseau"

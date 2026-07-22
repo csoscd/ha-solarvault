@@ -5,21 +5,26 @@
                 "title": "Configure Jackery",
                 "description": "Set up your Jackery energy storage integration. Note: the MQTT integration must be configured first.",
                 "data": {
-                    "mqtt_host": "MQTT Host",
                     "device_sn": "Device SN",
                     "token": "Token",
                     "topic_prefix": "MQTT Topic Prefix"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Re-authenticate Jackery",
+                "description": "The device reported a token mismatch. Enter the current token to restore the connection.",
+                "data": {
+                    "token": "Token"
+                }
             }
         },
         "error": {
-            "already_configured": "Integration already configured",
-            "mqtt_not_configured": "MQTT integration is not configured or unavailable. Please set up the MQTT integration first: Settings → Devices & Services → Add Integration → MQTT",
-            "single_instance_allowed": "Only one instance of this integration is allowed"
+            "already_configured": "This device SN is already configured",
+            "mqtt_not_configured": "MQTT integration is not configured or unavailable. Please set up the MQTT integration first: Settings → Devices & Services → Add Integration → MQTT"
         },
         "abort": {
-            "already_configured": "Integration already configured",
-            "single_instance_allowed": "Only one instance of this integration is allowed"
+            "already_configured": "This device SN is already configured",
+            "reauth_successful": "Re-authentication was successful"
         }
     },
     "entity": {
@@ -123,10 +128,38 @@
             "wifi_ssid": {"name": "WiFi SSID"},
             "ethernet_ip": {"name": "Ethernet IP"},
             "device_capability": {"name": "Device Capability"},
-            "device_status": {"name": "Device Status"},
-            "ongrid_status": {"name": "OnGrid Status"},
-            "ct_status": {"name": "CT Status"},
-            "grid_meter_link": {"name": "Grid Meter Link"},
+            "device_status": {
+                "name": "Device Status",
+                "state": {
+                    "normal": "Normal",
+                    "waiting": "Waiting",
+                    "alarm": "Alarm",
+                    "fault": "Fault",
+                    "standby": "Standby",
+                    "low_power": "Low Power"
+                }
+            },
+            "ongrid_status": {
+                "name": "OnGrid Status",
+                "state": {
+                    "disconnected": "Disconnected",
+                    "connected": "Connected"
+                }
+            },
+            "ct_status": {
+                "name": "CT Status",
+                "state": {
+                    "disconnected": "Disconnected",
+                    "connected": "Connected"
+                }
+            },
+            "grid_meter_link": {
+                "name": "Grid Meter Link",
+                "state": {
+                    "not_linked": "Not Linked",
+                    "linked": "Linked"
+                }
+            },
             "other_load_power": {"name": "Home Load Power (Estimated)"},
             "grid_in_power": {"name": "Grid AC Input Power"},
             "grid_out_power": {"name": "Grid AC Output Power"},
@@ -138,6 +171,7 @@
             "max_system_output_power": {"name": "Max System Output Power"},
             "max_system_input_power": {"name": "Max System Input Power"},
             "off_grid_time": {"name": "Off-Grid Switch Time"},
+            "max_feed_grid_power": {"name": "Max Feed Grid Power"},
             "ct_3phase_import_total": {"name": "Grid Import Power"},
             "ct_3phase_export_total": {"name": "Grid Export Power"},
             "ct_3phase_import_l1": {"name": "L1 Import Power"},

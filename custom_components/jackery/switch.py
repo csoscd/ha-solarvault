@@ -103,9 +103,10 @@ class JackeryPlugSwitch(SwitchEntity):
         self._attr_unique_id = f"jackery_plug_{plug_sn}_switch"
         self._attr_has_entity_name = True
 
+        main_device_id = coordinator._device_sn or config_entry_id
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"sub_{plug_sn}")},
-            "via_device": (DOMAIN, config_entry_id),
+            "via_device": (DOMAIN, main_device_id),
             "name": f"Jackery Plug {plug_sn}",
             "manufacturer": "Jackery",
             "model": f"Sub-device Type {dev_type}",
@@ -179,14 +180,15 @@ class JackeryMainSwitch(SwitchEntity):
     ) -> None:
         self._key = key
         self._coordinator = coordinator
-        self._attr_unique_id = f"jackery_main_{key}"
+        device_sn = coordinator._device_sn or config_entry_id
+        self._attr_unique_id = f"jackery_{device_sn}_switch_{key}"
         self._attr_has_entity_name = True
         if translation_key:
             self._attr_translation_key = translation_key
         elif name:
             self._attr_name = name
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
             "model": "Energy Monitor",
