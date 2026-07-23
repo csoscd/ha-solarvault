@@ -5,6 +5,61 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.0.0] – 2026-07-23
+
+### Added
+
+- **Multi-instance support**: Multiple Jackery devices can now be integrated simultaneously.
+  Each config entry is identified by its device serial number. Existing single-device
+  installations are migrated automatically on first startup — entity IDs and HA history
+  are preserved via `_migrate_unique_ids()` (entity registry) and device registry migration.
+
+- **Re-authentication flow**: If the device reports a token mismatch (MQTT type-123 /
+  errorCode 401), Home Assistant now shows a persistent notification prompting the user to
+  re-enter the token. Implemented via `async_step_reauth` / `async_step_reauth_confirm` in
+  the config flow and `_trigger_reauth()` in the coordinator.
+
+- **Device card: model and firmware version**: The HA device card now shows the device model
+  (`DIY3` for SolarVault 3 Pro Max) and the firmware version, extracted from incoming MQTT
+  messages via `_capture_device_meta()` / `_update_device_registry()`.
+
+- **Human-readable ENUM status sensors**: `Device Status`, `OnGrid Status`, `CT Status`, and
+  `Grid Meter Link` now use `SensorDeviceClass.ENUM` with translated labels (EN / DE / FR)
+  instead of raw integers. Mapped via `DEVICE_STATUS_MAP`, `ONGRID_STATUS_MAP`,
+  `CT_STATUS_MAP`, `GRID_METER_LINK_MAP`.
+
+- **New sensor – Max Feed Grid Power** (`maxFeedGrid`, type-106): exposes the device-side
+  feed-in limit for diagnostics. May differ from the writable `maxOutPw` setting.
+
+- **Smart Plug commMode guard**: MQTT switch commands to smart plugs are now blocked when the
+  plug is in cloud-relay mode (`commMode=2`). HA shows a persistent notification explaining
+  the issue; `HomeAssistantError` is raised so automations can handle it. `async_toggle()` is
+  also guarded. `extra_state_attributes` now includes `commMode`, `commMode_label`,
+  `mqtt_controllable`, and `mqtt_control_block_reason`.
+
+- **Initial poll before first sleep**: The coordinator now sends a type-25 poll 2 s after
+  startup, making sensor data available faster after HA start or integration reload.
+
+- **`_subdevice_sn()` helper**: Replaces inline `.get("deviceSn") or .get("sn")` calls
+  throughout the coordinator.
+
+### Fixed
+
+- **`JackeryAutoStandbySelect` missing optimistic cache update**: Writing a new value via the
+  Auto Standby select reverted to the old value on the next MQTT event (~10 s). Fixed by
+  patching `coordinator._data_cache` after the write, consistent with the v1.3.1 pattern
+  already applied to WorkMode and MaxFeedIn selects.
+
+### Changed
+
+- **Entry title**: Config entries are now titled `"Jackery {device_sn}"` instead of
+  `"Jackery"`, making multiple instances distinguishable in the HA UI.
+
+- **Unique ID format**: All entity unique IDs now include the device SN
+  (`jackery_{sn}_{entity}` instead of `jackery_{entity}`). Migration runs automatically.
+
+---
+
 ## [1.3.9] – 2026-07-17
 
 ### Fixed
