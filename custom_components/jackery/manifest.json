@@ -7,7 +7,7 @@
         "mqtt"
     ],
     "documentation": "https://github.com/csoscd/ha-solarvault",
-    "issue_tracker": "https://github.com/csoscd/ha-solarvault/issues",
     "iot_class": "local_push",
+    "issue_tracker": "https://github.com/csoscd/ha-solarvault/issues",
     "version": "2.0.0"
 }
