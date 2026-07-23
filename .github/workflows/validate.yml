@@ -36,6 +36,9 @@ jobs:
       - name: Install uv
         run: pip install uv
 
+      - name: Install dependencies
+        run: uv sync --group test
+
       - name: Run tests
         run: uv run pytest tests/ -v
 
