@@ -94,7 +94,8 @@ class JackeryMainNumber(NumberEntity):
         self._key = key
         self._coordinator = coordinator
         self._optimistic = optimistic
-        self._attr_unique_id = f"jackery_main_{key}"
+        device_sn = coordinator._device_sn or config_entry_id
+        self._attr_unique_id = f"jackery_{device_sn}_number_{key}"
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.SLIDER
         self._attr_native_min_value = min_value
@@ -105,7 +106,7 @@ class JackeryMainNumber(NumberEntity):
         if unit is not None:
             self._attr_native_unit_of_measurement = unit
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
             "model": "Energy Monitor",

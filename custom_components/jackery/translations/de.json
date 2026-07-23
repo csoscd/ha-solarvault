@@ -5,21 +5,26 @@
                 "title": "Jackery konfigurieren",
                 "description": "Jackery-Energiespeicher-Integration einrichten. Hinweis: Die MQTT-Integration muss zuerst konfiguriert sein.",
                 "data": {
-                    "mqtt_host": "MQTT-Host",
                     "device_sn": "Geräte-SN",
                     "token": "Token",
                     "topic_prefix": "MQTT-Topic-Präfix"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Jackery neu authentifizieren",
+                "description": "Das Gerät hat einen Token-Konflikt gemeldet. Bitte den aktuellen Token eingeben, um die Verbindung wiederherzustellen.",
+                "data": {
+                    "token": "Token"
+                }
             }
         },
         "error": {
-            "already_configured": "Integration bereits konfiguriert",
-            "mqtt_not_configured": "MQTT-Integration nicht konfiguriert oder nicht verfügbar. Bitte zuerst die MQTT-Integration einrichten: Einstellungen → Geräte & Dienste → Integration hinzufügen → MQTT",
-            "single_instance_allowed": "Nur eine Instanz dieser Integration ist erlaubt"
+            "already_configured": "Diese Geräte-SN ist bereits konfiguriert",
+            "mqtt_not_configured": "MQTT-Integration nicht konfiguriert oder nicht verfügbar. Bitte zuerst die MQTT-Integration einrichten: Einstellungen → Geräte & Dienste → Integration hinzufügen → MQTT"
         },
         "abort": {
-            "already_configured": "Integration bereits konfiguriert",
-            "single_instance_allowed": "Nur eine Instanz dieser Integration ist erlaubt"
+            "already_configured": "Diese Geräte-SN ist bereits konfiguriert",
+            "reauth_successful": "Neu-Authentifizierung war erfolgreich"
         }
     },
     "entity": {
@@ -123,10 +128,38 @@
             "wifi_ssid": {"name": "WLAN-SSID"},
             "ethernet_ip": {"name": "Ethernet-IP"},
             "device_capability": {"name": "Gerätefähigkeiten"},
-            "device_status": {"name": "Gerätestatus"},
-            "ongrid_status": {"name": "Netzanschluss-Status"},
-            "ct_status": {"name": "CT-Status"},
-            "grid_meter_link": {"name": "Netzzähler-Verbindung"},
+            "device_status": {
+                "name": "Gerätestatus",
+                "state": {
+                    "normal": "Normal",
+                    "waiting": "Wartend",
+                    "alarm": "Alarm",
+                    "fault": "Fehler",
+                    "standby": "Standby",
+                    "low_power": "Schwachstrom"
+                }
+            },
+            "ongrid_status": {
+                "name": "Netzanschluss-Status",
+                "state": {
+                    "disconnected": "Getrennt",
+                    "connected": "Verbunden"
+                }
+            },
+            "ct_status": {
+                "name": "CT-Status",
+                "state": {
+                    "disconnected": "Getrennt",
+                    "connected": "Verbunden"
+                }
+            },
+            "grid_meter_link": {
+                "name": "Netzzähler-Verbindung",
+                "state": {
+                    "not_linked": "Nicht verbunden",
+                    "linked": "Verbunden"
+                }
+            },
             "other_load_power": {"name": "Hausverbrauch (Geschätzt)"},
             "grid_in_power": {"name": "Netz AC-Eingangsleistung"},
             "grid_out_power": {"name": "Netz AC-Ausgangsleistung"},
@@ -138,6 +171,7 @@
             "max_system_output_power": {"name": "Max. Systemausgangsleistung"},
             "max_system_input_power": {"name": "Max. Systemeingangsleistung"},
             "off_grid_time": {"name": "Off-Grid-Schaltzeit"},
+            "max_feed_grid_power": {"name": "Max. Netz-Einspeiseleistung"},
             "ct_3phase_import_total": {"name": "Netzbezugsleistung (gesamt)"},
             "ct_3phase_export_total": {"name": "Einspeiseleistung (gesamt)"},
             "ct_3phase_import_l1": {"name": "L1 Bezugsleistung"},

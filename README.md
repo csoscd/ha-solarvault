@@ -39,10 +39,11 @@
 | WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
 | Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
-| Device Status | `stat` | Host operation status (normal / waiting / alarm / fault / standby / low_power) |
-| OnGrid Status | `ongridStat` | Grid-tie status: on_grid / off_grid |
-| CT Status | `ctStat` | CT meter connection status: online / offline |
-| Grid Meter Link | `gridSate` | Grid meter link health: normal / abnormal |
+| Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power |
+| OnGrid Status | `ongridStat` | Grid-tie status: disconnected / connected |
+| CT Status | `ctStat` | CT meter connection status: disconnected / connected |
+| Grid Meter Link | `gridSate` | Grid meter link health: not_linked / linked |
+| Max Feed Grid Power | `maxFeedGrid` | Maximum grid feed-in power reported by the device (from type-106 status) |
 
 #### New control entities (SolarVault 3 Pro Max)
 
@@ -50,7 +51,7 @@
 |---|---|---|---|---|
 | Number | SOC Charge Limit | `socChgLimit` | 0–100 % | Maximum SOC the battery charges to |
 | Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
-| Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–10000 W | Maximum OnGrid feed-in power (Einspeiseleistung); app offers 800 W / 2500 W |
+| Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung); only the two values supported by the app are offered to prevent invalid configurations |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
 | Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
 | Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
@@ -249,6 +250,32 @@ uv run pytest tests/ -v
 ```
 
 Tests cover the energy-flow calculation logic, MQTT message routing (including regression tests for the CT-cache bug), and sensor value transformations. No real MQTT broker or Home Assistant installation is required.
+
+---
+
+### What's new in v2.0.0
+
+#### Multi-Instance support
+
+Multiple Jackery devices can now be integrated simultaneously. Each integration entry is identified by its device serial number, so two SolarVaults or other Jackery MQTT devices can coexist in one Home Assistant instance without conflict.
+
+Existing single-device installations are migrated automatically on first startup — entity IDs and HA history are preserved.
+
+#### Re-Authentication flow
+
+If the device reports a token mismatch (MQTT type-123 / error 401), Home Assistant will now show a persistent notification prompting you to re-enter the token. This avoids having to remove and re-add the integration when the token changes.
+
+#### Device card: model and firmware version
+
+The HA device card now shows the device model (`DIY3` for SolarVault 3 Pro Max) and the firmware version, extracted from incoming MQTT messages. Previously, the device card always showed the generic label "Energy Monitor".
+
+#### Human-readable status labels
+
+The status sensors `Device Status`, `OnGrid Status`, `CT Status`, and `Grid Meter Link` now use `SensorDeviceClass.ENUM` and display human-readable labels (e.g. "Normal", "Connected") instead of raw integers. All labels are translated into English, German, and French.
+
+#### New sensor: Max Feed Grid Power
+
+`max_feed_grid_power` reads `maxFeedGrid` from type-106 messages. On some hardware configurations this differs from `maxOutPw` (the writable max feed-in setting). The new sensor exposes the raw device-side limit for diagnostics.
 
 ---
 

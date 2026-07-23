@@ -66,13 +66,14 @@ class JackeryAutoStandbySelect(SelectEntity):
     def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
         self._config_entry_id = config_entry_id
+        device_sn = coordinator._device_sn or config_entry_id
         self._attr_translation_key = "auto_standby"
         self._attr_icon = "mdi:power-sleep"
         self._attr_options = list(_AUTO_STANDBY_OPTIONS.keys())
         self._attr_has_entity_name = True
-        self._attr_unique_id = f"jackery_{config_entry_id}_auto_standby_select"
+        self._attr_unique_id = f"jackery_{device_sn}_auto_standby_select"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
             "model": "Energy Monitor",
@@ -107,6 +108,10 @@ class JackeryAutoStandbySelect(SelectEntity):
         value = _AUTO_STANDBY_OPTIONS.get(option)
         if value is None:
             return
+        # Fix B1: optimistic cache update prevents _distribute_data reverting state (v1.3.1 pattern)
+        self._attr_current_option = option
+        self.async_write_ha_state()
+        self._coordinator._data_cache["autoStandby"] = value
         await self._coordinator.async_control_main_device({"autoStandby": value})
 
 
@@ -120,13 +125,14 @@ class JackeryWorkModeSelect(SelectEntity):
 
     def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
+        device_sn = coordinator._device_sn or config_entry_id
         self._attr_translation_key = "work_mode"
         self._attr_icon = "mdi:cog-outline"
         self._attr_options = list(_WORK_MODE_OPTIONS.values())
         self._attr_has_entity_name = True
-        self._attr_unique_id = f"jackery_{config_entry_id}_work_mode_select"
+        self._attr_unique_id = f"jackery_{device_sn}_work_mode_select"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
             "model": "Energy Monitor",
@@ -179,13 +185,14 @@ class JackeryMaxFeedInSelect(SelectEntity):
 
     def __init__(self, coordinator: "JackeryDataCoordinator", config_entry_id: str) -> None:
         self._coordinator = coordinator
+        device_sn = coordinator._device_sn or config_entry_id
         self._attr_translation_key = "max_feed_in_power"
         self._attr_icon = "mdi:transmission-tower-export"
         self._attr_options = list(_MAX_FEED_IN_OPTIONS.keys())
         self._attr_has_entity_name = True
-        self._attr_unique_id = f"jackery_{config_entry_id}_max_feed_in_select"
+        self._attr_unique_id = f"jackery_{device_sn}_max_feed_in_select"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
             "model": "Energy Monitor",

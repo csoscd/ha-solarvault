@@ -22,8 +22,21 @@ from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# 常量定义
-REQUEST_INTERVAL = 10  # 数据请求间隔（秒）
+REQUEST_INTERVAL = 10  # seconds; intentionally 10 s (upstream uses 5 s — too much MQTT traffic for homelab)
+
+# Device model lookup from deviceType field in MQTT payload
+DEVICE_TYPE_MODEL_MAP: dict[int, str] = {
+    3: "DIY3",   # SolarVault 3 Pro Max
+}
+DEFAULT_MODEL = "Energy Monitor"
+
+# ENUM value → option-key maps for status sensors (Ü5/Ü6 from upstream v2.0.0)
+DEVICE_STATUS_MAP: dict[int, str] = {
+    0: "normal", 1: "waiting", 2: "alarm", 3: "fault", 4: "standby", 5: "low_power",
+}
+ONGRID_STATUS_MAP: dict[int, str] = {0: "disconnected", 1: "connected"}
+CT_STATUS_MAP: dict[int, str] = {0: "disconnected", 1: "connected"}
+GRID_METER_LINK_MAP: dict[int, str] = {0: "not_linked", 1: "linked"}
 
 # 传感器配置
 SENSORS = {
@@ -555,38 +568,46 @@ SENSORS = {
         "state_class": None,
     },
 
-    # Gerätestatus (type=2 / type=106)
+    # Gerätestatus (type=2 / type=106) — ENUM sensors with readable labels (Ü5)
     "device_status": {
         "json_key": "stat",
         "name": "Device Status",
         "unit": None,
         "icon": "mdi:state-machine",
-        "device_class": None,
+        "device_class": SensorDeviceClass.ENUM,
         "state_class": None,
+        "options": list(DEVICE_STATUS_MAP.values()),
+        "value_map": DEVICE_STATUS_MAP,
     },
     "ongrid_status": {
         "json_key": "ongridStat",
         "name": "OnGrid Status",
         "unit": None,
         "icon": "mdi:transmission-tower",
-        "device_class": None,
+        "device_class": SensorDeviceClass.ENUM,
         "state_class": None,
+        "options": list(ONGRID_STATUS_MAP.values()),
+        "value_map": ONGRID_STATUS_MAP,
     },
     "ct_status": {
         "json_key": "ctStat",
         "name": "CT Status",
         "unit": None,
         "icon": "mdi:current-ac",
-        "device_class": None,
+        "device_class": SensorDeviceClass.ENUM,
         "state_class": None,
+        "options": list(CT_STATUS_MAP.values()),
+        "value_map": CT_STATUS_MAP,
     },
     "grid_meter_link": {
         "json_key": "gridSate",
         "name": "Grid Meter Link",
         "unit": None,
         "icon": "mdi:lan-connect",
-        "device_class": None,
+        "device_class": SensorDeviceClass.ENUM,
         "state_class": None,
+        "options": list(GRID_METER_LINK_MAP.values()),
+        "value_map": GRID_METER_LINK_MAP,
     },
 
     # Type-106 fields (response to type-105 poll, ~every 5 min)
@@ -677,6 +698,17 @@ SENSORS = {
         "icon": "mdi:timer-outline",
         "device_class": None,
         "state_class": None,
+    },
+    # maxFeedGrid (type-106): enforced grid feed-in cap, distinct from maxOutPw (type-2).
+    # Live capture 2026-07-22: maxFeedGrid=800 W while maxOutPw=2500 W — two separate fields.
+    # Read-only; the user-selectable limit is written via maxOutPw (JackeryMaxFeedInSelect).
+    "max_feed_grid_power": {
+        "json_key": "maxFeedGrid",
+        "name": "Max Feed Grid Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:transmission-tower-export",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
     },
 }
 
@@ -919,6 +951,11 @@ SUBDEVICE_SENSORS = {
 CT_DEV_TYPES: frozenset[int] = frozenset({2, 3, 4})
 
 
+def _subdevice_sn(item: dict) -> str | None:
+    """Extract device serial number from a sub-device dict (Ü7)."""
+    return item.get("deviceSn") or item.get("sn")
+
+
 def _merge_subdevice_list(
     existing: list[dict] | None,
     new_items: list[dict],
@@ -944,7 +981,6 @@ class JackeryDataCoordinator:
     """协调器：管理MQTT订阅和数据获取，供所有传感器实体共享使用."""
 
     def __init__(self, hass: HomeAssistant, topic_prefix: str, token: str, mqtt_host: str, device_sn: str) -> None:
-        """初始化协调器."""
         self.hass = hass
         self._topic_prefix = topic_prefix
         self._token = token
@@ -952,22 +988,29 @@ class JackeryDataCoordinator:
         self._device_sn = device_sn
         self._topic_root = topic_prefix
 
-        self._sensors = {}  # {sensor_id: entity}
+        self._sensors: dict[str, Any] = {}
         self._data_task = None
         self._subscribed = False
         self._last_update_time = time.time()
         self._start_time = time.time()
 
-        self._known_plugs = set() # Set of known plug SNs
-        self._subdevice_missing_since = {} # {sn: timestamp} for deletion delay
-        self._subdevice_last_seen: dict[str, float] = {}  # {sn: timestamp} for offline detection
-        self._expansion_battery_sns: set[str] = set()  # SNs with slow update cadence (~10 min)
-        self._poll_105_counter: int = 2  # start at threshold-1 so type-105 fires on first cycle
-        self.add_entities_callback = None # Callback to add new entities
-        self.add_switch_entities_callback = None # Callback to add new switch entities
-        self._data_cache = {} # Cache for merged data from status and events
+        self._known_plugs: set[str] = set()
+        self._subdevice_missing_since: dict[str, float] = {}
+        self._subdevice_last_seen: dict[str, float] = {}
+        self._expansion_battery_sns: set[str] = set()
+        self._poll_105_counter: int = 2  # starts at threshold-1 so type-105 fires on first cycle
+        self.add_entities_callback = None
+        self.add_switch_entities_callback = None
+        self._data_cache: dict[str, Any] = {}
 
-        # Topic patterns
+        # Device meta — populated from first MQTT message, used to update device registry (Ü2/Ü3)
+        self._device_type: int | None = None
+        self._soft_ver: str | None = None
+
+        # Re-Auth guard — prevents multiple simultaneous re-auth flows
+        self._reauth_started: bool = False
+        self._config_entry_id: str = ""  # set by async_setup_entry
+
         self._topic_status_wildcard = f"{self._topic_root}/device/+/status"
         self._topic_event_wildcard = f"{self._topic_root}/device/+/event"
 
@@ -1039,12 +1082,13 @@ class JackeryDataCoordinator:
             match = re.search(rf"{self._topic_root}/device/([^/]+)/(status|event)", topic)
             if match:
                 sn = match.group(1)
-                msg_type = match.group(2) # 'status' or 'event'
                 if not self._device_sn:
                     self._device_sn = sn
                     _LOGGER.info(f"Discovered device SN: {self._device_sn}")
                 elif self._device_sn != sn:
-                    _LOGGER.debug(f"Received data from another device: {sn}")
+                    # Ü1: ignore messages from other devices on the same broker
+                    _LOGGER.debug(f"Ignoring data from another device: {sn}")
+                    return
 
             # Parse Payload
             try:
@@ -1061,6 +1105,10 @@ class JackeryDataCoordinator:
                          return 
                      body = {}
                 
+                # Capture device model/firmware from first message (Ü2)
+                if isinstance(body, dict):
+                    self._capture_device_meta(raw_data, body)
+
                 # Merge logic
                 # Type 23: Statistical/Energy Data
                 if msg_code == 23 and isinstance(body, dict):
@@ -1147,6 +1195,12 @@ class JackeryDataCoordinator:
                     self._data_cache.update(merged)
                     _LOGGER.debug("Received type-106 system state (%d fields)", len(body))
 
+                # Type 123: Auth error from device
+                elif msg_code == 123 and isinstance(body, dict):
+                    error_code = body.get("errorCode")
+                    if error_code == 401:
+                        self._trigger_reauth("device reported token mismatch (type-123/401)")
+
                 # Type 25 or Status: Main device data
                 elif isinstance(body, dict):
                     # Merge top-level keys into cache to preserve fields not present in current message
@@ -1167,6 +1221,46 @@ class JackeryDataCoordinator:
 
         except Exception as e:
             _LOGGER.error(f"Error handling message: {e}")
+
+    def _capture_device_meta(self, raw_data: dict, body: dict) -> None:
+        """Extract deviceType and firmware version from MQTT payload to update HA device registry (Ü2)."""
+        changed = False
+        device_type = raw_data.get("deviceType")
+        if device_type is not None and self._device_type is None:
+            self._device_type = int(device_type)
+            changed = True
+        soft_ver = body.get("softver")
+        if soft_ver is not None and soft_ver != self._soft_ver:
+            self._soft_ver = str(soft_ver)
+            changed = True
+        if changed:
+            asyncio.create_task(self._update_device_registry())
+
+    async def _update_device_registry(self) -> None:
+        """Update HA device registry with model name and firmware version (Ü3)."""
+        from homeassistant.helpers import device_registry as dr
+        registry = dr.async_get(self.hass)
+        model = DEVICE_TYPE_MODEL_MAP.get(self._device_type, DEFAULT_MODEL)
+        identifier = self._device_sn or self._config_entry_id
+        device = registry.async_get_device(identifiers={(DOMAIN, identifier)})
+        if device:
+            registry.async_update_device(device.id, model=model, sw_version=self._soft_ver)
+            _LOGGER.debug("Device registry updated: model=%s sw_version=%s", model, self._soft_ver)
+
+    def _trigger_reauth(self, reason: str) -> None:
+        """Initiate a re-authentication flow in HA (Re-Auth feature)."""
+        if self._reauth_started:
+            return
+        self._reauth_started = True
+        _LOGGER.warning("Triggering re-authentication: %s", reason)
+        from homeassistant.config_entries import SOURCE_REAUTH
+        self.hass.async_create_task(
+            self.hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_REAUTH, "entry_id": self._config_entry_id},
+                data={},
+            )
+        )
 
     def _check_for_new_plugs(self, data: dict) -> None:
         """Check and sync plugs/CTs (add new, remove old)."""
@@ -1344,6 +1438,19 @@ class JackeryDataCoordinator:
         if isinstance(cts, list):
             return [p for p in cts if isinstance(p, dict)]
         return []
+
+    def get_plug_item(self, plug_sn: str) -> dict[str, Any] | None:
+        """Return cached plug item by SN, or None if not found."""
+        plugs = self._data_cache.get("plugs") or self._data_cache.get("plug")
+        if not isinstance(plugs, list):
+            return None
+        return next(
+            (
+                p for p in plugs
+                if isinstance(p, dict) and (p.get("deviceSn") == plug_sn or p.get("sn") == plug_sn)
+            ),
+            None,
+        )
 
     async def async_control_subdevice_switch(self, plug_sn: str, dev_type: int, is_on: bool) -> None:
         """Control sub-device switch via type 103."""
@@ -1551,9 +1658,14 @@ class JackeryDataCoordinator:
                 entity.async_write_ha_state()
 
     async def _periodic_data_request(self) -> None:
-        """定期发送 'type: 25' 和 'type: 100' 指令."""
-        _LOGGER.info(f"Starting periodic data polling for {self._device_sn} via {self._mqtt_host}...")
+        """Send periodic poll requests (type-25, type-105, type-100)."""
+        _LOGGER.info("Starting periodic data polling for %s...", self._device_sn)
+
+        # Ü8: Send initial poll immediately so sensors populate before the first sleep.
+        # Small delay lets subscriptions settle first.
         await asyncio.sleep(2)
+        if self._device_sn:
+            await self._send_poll_requests()
 
         while True:
             try:
@@ -1565,85 +1677,63 @@ class JackeryDataCoordinator:
                     await asyncio.sleep(5)
                     continue
 
-                # Construct Action Topic
-                action_topic = f"{self._topic_root}/device/{self._device_sn}/action"
-                ts = int(time.time())
-                
-                # 1. Poll Device Status (Type 25)
-                try:
-                    payload_25 = {
-                        "type": 25,
-                        "eventId": 0,
-                        "messageId": random.randint(1000, 9999),
-                        "ts": ts,
-                        "token": self._token,
-                        "body": None
-                    }
-
-                    await ha_mqtt.async_publish(
-                        self.hass,
-                        action_topic,
-                        json.dumps(payload_25),
-                        0,
-                        False
-                    )
-                except Exception as e:
-                    _LOGGER.warning(f"Error polling device status (Type 25): {e}")
-
-                # 2. Poll full system state (Type 105) every 3 cycles ≈ 30 s
-                self._poll_105_counter += 1
-                if self._poll_105_counter >= 3:
-                    self._poll_105_counter = 0
-                    try:
-                        payload_105 = {
-                            "type": 105,
-                            "eventId": 0,
-                            "messageId": random.randint(1000, 9999),
-                            "ts": ts,
-                            "token": self._token,
-                            "body": None,
-                        }
-                        await ha_mqtt.async_publish(
-                            self.hass, action_topic, json.dumps(payload_105), 0, False
-                        )
-                        _LOGGER.debug("Sent type-105 poll (full system state)")
-                    except Exception as e:
-                        _LOGGER.warning("Error polling full system state (Type 105): %s", e)
-
-                # 3. Poll Sub-devices (Type 100) - CTs (2), SmartMeter 3P (3), Plugs (6)
-                try:
-                    for dev_type in [2, 3, 6]:
-                        payload_100 = {
-                            "type": 100,
-                            "eventId": 0,
-                            "messageId": random.randint(1000, 9999),
-                            "ts": ts,
-                            "token": self._token,
-                            "body": {
-                                "devType": dev_type
-                            }
-                        }
-
-                        await ha_mqtt.async_publish(
-                            self.hass,
-                            action_topic,
-                            json.dumps(payload_100),
-                            0,
-                            False
-                        )
-                        await asyncio.sleep(0.5) # Avoid spamming too fast
-                except Exception as e:
-                    _LOGGER.warning(f"Error polling sub-devices (Type 100): {e}")
-                
-                _LOGGER.debug(f"Sent poll requests (25 & 100 [2,6]) to {action_topic}")
-
+                await self._send_poll_requests()
                 await asyncio.sleep(REQUEST_INTERVAL)
 
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                _LOGGER.error(f"Error in polling task: {e}")
+                _LOGGER.error("Error in polling task: %s", e)
                 await asyncio.sleep(REQUEST_INTERVAL)
+
+    async def _send_poll_requests(self) -> None:
+        """Send type-25, throttled type-105, and type-100 poll requests."""
+        if not self._device_sn:
+            return
+        action_topic = f"{self._topic_root}/device/{self._device_sn}/action"
+        ts = int(time.time())
+
+        # 1. Poll device status (type-25)
+        try:
+            payload_25 = {
+                "type": 25, "eventId": 0,
+                "messageId": random.randint(1000, 9999),
+                "ts": ts, "token": self._token, "body": None,
+            }
+            await ha_mqtt.async_publish(self.hass, action_topic, json.dumps(payload_25), 0, False)
+        except Exception as e:
+            _LOGGER.warning("Error polling device status (type-25): %s", e)
+
+        # 2. Poll full system state (type-105) every 3 cycles ≈ 30 s
+        self._poll_105_counter += 1
+        if self._poll_105_counter >= 3:
+            self._poll_105_counter = 0
+            try:
+                payload_105 = {
+                    "type": 105, "eventId": 0,
+                    "messageId": random.randint(1000, 9999),
+                    "ts": ts, "token": self._token, "body": None,
+                }
+                await ha_mqtt.async_publish(self.hass, action_topic, json.dumps(payload_105), 0, False)
+                _LOGGER.debug("Sent type-105 poll (full system state)")
+            except Exception as e:
+                _LOGGER.warning("Error polling full system state (type-105): %s", e)
+
+        # 3. Poll sub-devices (type-100): CTs (2), SmartMeter 3P (3), Plugs (6)
+        try:
+            for dev_type in [2, 3, 6]:
+                payload_100 = {
+                    "type": 100, "eventId": 0,
+                    "messageId": random.randint(1000, 9999),
+                    "ts": ts, "token": self._token,
+                    "body": {"devType": dev_type},
+                }
+                await ha_mqtt.async_publish(self.hass, action_topic, json.dumps(payload_100), 0, False)
+                await asyncio.sleep(0.5)
+        except Exception as e:
+            _LOGGER.warning("Error polling sub-devices (type-100): %s", e)
+
+        _LOGGER.debug("Sent poll requests to %s", action_topic)
 
 
 async def async_setup_entry(
@@ -1659,7 +1749,8 @@ async def async_setup_entry(
     device_sn = config.get("device_sn")
 
     coordinator = JackeryDataCoordinator(hass, topic_prefix, token, mqtt_host, device_sn)
-    coordinator.config_entry_id = config_entry.entry_id # Assign entry_id
+    coordinator.config_entry_id = config_entry.entry_id
+    coordinator._config_entry_id = config_entry.entry_id
     
     # Register callback for dynamic entities
     def add_entities_callback(new_entities):
@@ -1703,14 +1794,18 @@ class JackerySensor(SensorEntity):
         self._attr_icon = self._config["icon"]
         self._attr_device_class = self._config["device_class"]
         self._attr_state_class = self._config["state_class"]
-        self._attr_unique_id = f"jackery_{sensor_id}"
+        # Multi-instance unique ID: includes device_sn so two SolarVaults on the same HA don't clash
+        device_sn = coordinator._device_sn or config_entry_id
+        self._attr_unique_id = f"jackery_{device_sn}_{sensor_id}"
         self._attr_has_entity_name = True
+        if self._config.get("options"):
+            self._attr_options = self._config["options"]
 
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, config_entry_id)},
+            "identifiers": {(DOMAIN, device_sn)},
             "name": "Jackery",
             "manufacturer": "Jackery",
-            "model": "Energy Monitor",
+            "model": DEFAULT_MODEL,
         }
 
     @property
@@ -1766,15 +1861,23 @@ class JackerySensor(SensorEntity):
             else:
                 self._attr_native_value = str(value)
         else:
-            scale = self._config.get("scale", 1)
-            try:
-                raw = float(value) * scale
-                if self._config.get("unit") is None and scale == 1:
-                    self._attr_native_value = int(raw) if raw == int(raw) else raw
-                else:
-                    self._attr_native_value = raw
-            except (TypeError, ValueError):
-                 self._attr_native_value = value
+            value_map = self._config.get("value_map")
+            if value_map is not None:
+                # ENUM sensor: translate integer MQTT value to option string (Ü5)
+                try:
+                    self._attr_native_value = value_map.get(int(value), str(value))
+                except (TypeError, ValueError):
+                    self._attr_native_value = str(value)
+            else:
+                scale = self._config.get("scale", 1)
+                try:
+                    raw = float(value) * scale
+                    if self._config.get("unit") is None and scale == 1:
+                        self._attr_native_value = int(raw) if raw == int(raw) else raw
+                    else:
+                        self._attr_native_value = raw
+                except (TypeError, ValueError):
+                    self._attr_native_value = value
 
         self._attr_available = True
         self.async_write_ha_state()
@@ -1833,9 +1936,10 @@ class JackerySubDeviceSensor(SensorEntity):
         self._attr_unique_id = f"jackery_{device_name.lower()}_{plug_sn}_{safe_key}"
         self._attr_has_entity_name = True
 
+        main_device_id = coordinator._device_sn or config_entry_id
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"sub_{plug_sn}")}, 
-            "via_device": (DOMAIN, config_entry_id),
+            "identifiers": {(DOMAIN, f"sub_{plug_sn}")},
+            "via_device": (DOMAIN, main_device_id),
             "name": f"Jackery {device_name} {plug_sn}",
             "manufacturer": "Jackery",
             "model": f"Sub-device Type {dev_type}",
