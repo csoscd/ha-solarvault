@@ -1,6 +1,6 @@
 """Jackery Number Platform."""
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
@@ -61,14 +61,14 @@ async def async_setup_entry(
         entities.append(
             JackeryMainNumber(
                 key=key,
-                min_value=cfg["min"],
-                max_value=cfg["max"],
-                step=cfg["step"],
+                min_value=float(cfg["min"]),
+                max_value=float(cfg["max"]),
+                step=float(cfg["step"]),
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
-                translation_key=cfg.get("translation_key"),
-                unit=cfg.get("unit"),
-                optimistic=cfg.get("optimistic", False),
+                translation_key=str(cfg["translation_key"]) if cfg.get("translation_key") else None,
+                unit=str(cfg["unit"]) if cfg.get("unit") else None,
+                optimistic=bool(cfg.get("optimistic", False)),
             )
         )
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.components.switch import SwitchEntity
@@ -134,7 +134,7 @@ class JackeryPlugSwitch(SwitchEntity):
         self,
         plug_sn: str,
         dev_type: int,
-        coordinator: "JackeryDataCoordinator",
+        coordinator: JackeryDataCoordinator,
         config_entry_id: str,
     ) -> None:
         """Initialize."""
@@ -261,7 +261,7 @@ class JackeryMainSwitch(SwitchEntity):
     def __init__(
         self,
         key: str,
-        coordinator: "JackeryDataCoordinator",
+        coordinator: JackeryDataCoordinator,
         config_entry_id: str,
         translation_key: str | None = None,
         name: str | None = None,

@@ -1,12 +1,12 @@
 """Config flow for Jackery SolarVault integration."""
+from __future__ import annotations
+
 import logging
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components import mqtt
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 
 from . import DOMAIN
 
@@ -23,14 +23,14 @@ DATA_SCHEMA = vol.Schema(
 REAUTH_SCHEMA = vol.Schema({vol.Required("token"): str})
 
 
-class JackeryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class JackeryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Jackery."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> config_entries.ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
@@ -65,13 +65,13 @@ class JackeryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(
         self, entry_data: dict[str, Any]
-    ) -> FlowResult:
+    ) -> config_entries.ConfigFlowResult:
         """Handle re-authentication when the device reports a token mismatch."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> config_entries.ConfigFlowResult:
         """Let the user enter a new token."""
         errors: dict[str, str] = {}
 
