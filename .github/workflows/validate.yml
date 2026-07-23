@@ -36,9 +36,35 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: uv sync --group test
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: uv run pytest tests/ -v
 
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install lint dependencies
+        run: uv sync --group lint
+
+      - name: Ruff check
+        run: uv run ruff check custom_components/jackery/
+
+      - name: mypy type check
+        run: uv run mypy custom_components/jackery/
+
+      - name: Translation completeness check
+        run: python tools/check_translations.py

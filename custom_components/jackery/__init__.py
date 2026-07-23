@@ -1,11 +1,12 @@
 """Energy Monitor MQTT Integration for Home Assistant."""
 import logging
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.const import Platform
 from homeassistant.components import mqtt
-from homeassistant.helpers import entity_registry as er, device_registry as dr
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +29,6 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if not device_sn:
         return
 
-    entity_reg = er.async_get(hass)
     entry_id = entry.entry_id
     new_prefix = f"jackery_{device_sn}_"
 
