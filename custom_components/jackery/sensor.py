@@ -1439,6 +1439,19 @@ class JackeryDataCoordinator:
             return [p for p in cts if isinstance(p, dict)]
         return []
 
+    def get_plug_item(self, plug_sn: str) -> dict[str, Any] | None:
+        """Return cached plug item by SN, or None if not found."""
+        plugs = self._data_cache.get("plugs") or self._data_cache.get("plug")
+        if not isinstance(plugs, list):
+            return None
+        return next(
+            (
+                p for p in plugs
+                if isinstance(p, dict) and (p.get("deviceSn") == plug_sn or p.get("sn") == plug_sn)
+            ),
+            None,
+        )
+
     async def async_control_subdevice_switch(self, plug_sn: str, dev_type: int, is_on: bool) -> None:
         """Control sub-device switch via type 103."""
         if not self._device_sn:
