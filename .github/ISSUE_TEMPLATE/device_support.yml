@@ -1,0 +1,74 @@
+name: Device Support Request
+description: Request support for a new Jackery device or sub-device
+labels: ["device-support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This fork is primarily tested with the **SolarVault 3 Pro Max**, **BP2500**, and **SmartMeter 3P**.
+        To add support for a new device, we need raw MQTT data. Please provide as much as you can below.
+
+  - type: input
+    id: device_name
+    attributes:
+      label: Device Name / Model
+      placeholder: "e.g. Jackery Smart Meter D0 Reader"
+    validations:
+      required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware Version
+      description: Shown in the Jackery App under device settings
+      placeholder: "e.g. 1.2.3"
+    validations:
+      required: false
+
+  - type: textarea
+    id: type101
+    attributes:
+      label: Type-101 MQTT Payload (sub-device event)
+      description: |
+        Subscribe to `hb/device/<YOUR_SN>/event` and paste messages where `"type": 101` contains your device.
+        Please include the full JSON. Redact your token and serial number if needed (replace with `XXXX`).
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: type23
+    attributes:
+      label: Type-23 MQTT Payload (energy statistics)
+      description: |
+        Subscribe to `hb/device/<YOUR_SN>/status` and paste messages where `"type": 23` contains your device.
+        These arrive roughly every 10 minutes.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: type100_response
+    attributes:
+      label: Type-100 Poll Response (sub-device discovery)
+      description: |
+        Publish `{"type":100,"eventId":0,"messageId":1234,"ts":<timestamp>,"token":"<TOKEN>","body":{"devType":2}}`
+        to `hb/device/<YOUR_SN>/action` and paste the response here.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: app_screenshot
+    attributes:
+      label: What the Jackery App Shows
+      description: Describe which values/sensors the Jackery App displays for this device that you'd like to see in HA.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+    validations:
+      required: false

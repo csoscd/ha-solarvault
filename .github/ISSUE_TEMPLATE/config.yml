@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Original Jackery Integration
+    url: https://github.com/Jackery-Official/jackery/issues
+    about: For issues not specific to this fork, please use the upstream repository.
+  - name: Home Assistant Community Forum
+    url: https://community.home-assistant.io
+    about: General Home Assistant questions and help.
