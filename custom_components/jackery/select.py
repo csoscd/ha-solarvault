@@ -183,7 +183,7 @@ class JackeryMaxFeedInSelect(SelectEntity):
     are not supported by the device and may violate local grid regulations.
     """
 
-    def __init__(self, coordinator: "JackeryDataCoordinator", config_entry_id: str) -> None:
+    def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
         self._coordinator = coordinator
         device_sn = coordinator._device_sn or config_entry_id
         self._attr_translation_key = "max_feed_in_power"

@@ -1,7 +1,7 @@
 [project]
-name = "home-assistant-demo-mqtt"
-version = "0.1.0"
-description = "Add your description here"
+name = "ha-solarvault"
+version = "2.0.0"
+description = "Home Assistant custom integration for Jackery SolarVault via MQTT"
 requires-python = ">=3.13"
 dependencies = [
     "paho-mqtt>=2.1.0",
@@ -12,7 +12,45 @@ test = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "pytest-homeassistant-custom-component>=0.13",
+    "pytest-cov>=5",
+]
+lint = [
+    "ruff>=0.9",
+    "mypy>=1.11",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov=custom_components/jackery --cov-report=term-missing --cov-fail-under=30"
+
+[tool.coverage.run]
+source = ["custom_components/jackery"]
+omit = ["*/test_*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "E501",   # line too long — handled by formatter, 120 is our limit
+    "UP007",  # X | Y syntax for Optional — HA still uses Optional in many places
+    "UP035",  # typing imports — HA ecosystem compatibility
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components.jackery"]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_ignores = false
+check_untyped_defs = true

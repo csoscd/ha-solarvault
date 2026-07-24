@@ -5,7 +5,7 @@ import logging
 import random
 import re
 import time
-from typing import Any, Callable
+from typing import Any
 
 from homeassistant.components import mqtt as ha_mqtt
 from homeassistant.components.sensor import (
@@ -14,7 +14,14 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower, UnitOfTemperature, UnitOfTime, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.const import (
+    PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -325,7 +332,7 @@ SENSORS = {
     #     "device_class": None,
     #     "state_class": None, # 0-Invalid, 1-Sleep/Off, 2-On
     # },
-    
+
     # Calculated Sensors
     "home_power": {
         "json_key": "calc_home_power",
@@ -989,7 +996,7 @@ class JackeryDataCoordinator:
         self._topic_root = topic_prefix
 
         self._sensors: dict[str, Any] = {}
-        self._data_task = None
+        self._data_task: asyncio.Task[None] | None = None
         self._subscribed = False
         self._last_update_time = time.time()
         self._start_time = time.time()
@@ -999,8 +1006,8 @@ class JackeryDataCoordinator:
         self._subdevice_last_seen: dict[str, float] = {}
         self._expansion_battery_sns: set[str] = set()
         self._poll_105_counter: int = 2  # starts at threshold-1 so type-105 fires on first cycle
-        self.add_entities_callback = None
-        self.add_switch_entities_callback = None
+        self.add_entities_callback: Any = None
+        self.add_switch_entities_callback: Any = None
         self._data_cache: dict[str, Any] = {}
 
         # Device meta — populated from first MQTT message, used to update device registry (Ü2/Ü3)
@@ -1014,8 +1021,8 @@ class JackeryDataCoordinator:
         self._topic_status_wildcard = f"{self._topic_root}/device/+/status"
         self._topic_event_wildcard = f"{self._topic_root}/device/+/event"
 
-    def register_sensor(self, sensor_id: str, entity: "JackerySensor") -> None:
-        """注册传感器实体."""
+    def register_sensor(self, sensor_id: str, entity: Any) -> None:
+        """Register any HA entity that implements _update_from_coordinator."""
         self._sensors[sensor_id] = entity
 
     def unregister_sensor(self, sensor_id: str) -> None:
@@ -1095,16 +1102,16 @@ class JackeryDataCoordinator:
                 raw_data = json.loads(payload)
                 msg_code = raw_data.get("type")
                 body = raw_data.get("body")
-                
+
                 # If body is missing or None, use empty dict or the raw_data itself if it looks like data
                 # But protocol says data is in body.
                 if body is None:
                      # Some status messages might be flat? Assuming body per protocol.
                      # If Type 101 and body is None, ignore.
                      if msg_code == 101:
-                         return 
+                         return
                      body = {}
-                
+
                 # Capture device model/firmware from first message (Ü2)
                 if isinstance(body, dict):
                     self._capture_device_meta(raw_data, body)
@@ -1213,7 +1220,7 @@ class JackeryDataCoordinator:
             # Enrich data with calculations using merged cache
             # operate on copy or direct? Direct is fine.
             self._data_cache = self._calculate_energy_flow(self._data_cache)
-            
+
             # Check for new plugs
             self._check_for_new_plugs(self._data_cache)
 
@@ -1240,7 +1247,7 @@ class JackeryDataCoordinator:
         """Update HA device registry with model name and firmware version (Ü3)."""
         from homeassistant.helpers import device_registry as dr
         registry = dr.async_get(self.hass)
-        model = DEVICE_TYPE_MODEL_MAP.get(self._device_type, DEFAULT_MODEL)
+        model = DEVICE_TYPE_MODEL_MAP.get(self._device_type or 0, DEFAULT_MODEL)
         identifier = self._device_sn or self._config_entry_id
         device = registry.async_get_device(identifiers={(DOMAIN, identifier)})
         if device:
@@ -1278,7 +1285,7 @@ class JackeryDataCoordinator:
             sn = plug.get("deviceSn") or plug.get("sn")
             if sn:
                 current_sns.add(sn)
-        
+
         now = time.time()
 
         # 0. Update sub-device availability based on last_seen timestamps
@@ -1333,7 +1340,7 @@ class JackeryDataCoordinator:
                 _LOGGER.info(f"Sub-device {sn} missing for >60s. Removing.")
                 self._known_plugs.remove(sn)
                 del self._subdevice_missing_since[sn]
-                
+
                 # Remove entities
                 for sensor_id, entity in list(self._sensors.items()):
                     # Match unique IDs containing the SN for sub-devices
@@ -1513,7 +1520,7 @@ class JackeryDataCoordinator:
     def _calculate_energy_flow(self, data: dict) -> dict:
         """
         根据用户需求计算能量流数据.
-        
+
         Variables Mapping:
         - PV: pvPw
         - OngridCharge: inOngridPw
@@ -1548,7 +1555,7 @@ class JackeryDataCoordinator:
             grid_available = False
             grid_buy = 0.0
             grid_sell = 0.0
-            
+
             cts = data.get("cts")
             if cts and isinstance(cts, list) and len(cts) > 0:
                 # 尝试获取第一个 CT 数据
@@ -1578,7 +1585,7 @@ class JackeryDataCoordinator:
                     grid_buy = float(t_phase_pw or 0)
                     grid_sell = float(tn_phase_pw or 0)
                     grid_available = True
-            
+
             # 兼容旧逻辑或直接字段 (如果 cts 不存在)
             if not grid_available:
                 # Use explicit None check so that 0 W (no flow) is still valid
@@ -1595,7 +1602,7 @@ class JackeryDataCoordinator:
             p_grid = None
             if grid_available:
                 p_grid = grid_buy - grid_sell
-                
+
                 # 🔴异常流程（仅当电表可用且并网口处于充电态时生效）
                 # GridAvailable=true 且 GridBuy < OngridCharge 且 (OngridCharge - GridBuy) <= 50W
                 if grid_buy < ongrid_charge and (ongrid_charge - grid_buy) <= 50:
@@ -1607,7 +1614,7 @@ class JackeryDataCoordinator:
 
             # 6. Home (Calculated)
             p_home = 0.0
-            
+
             if p_grid is not None:
                 # 电表可用
                 # Base formula: p_home = p_grid - p_ong
@@ -1624,7 +1631,7 @@ class JackeryDataCoordinator:
                 # 🔴 异常分支 2: larger discrepancy between grid_buy and ongrid_charge
                 elif grid_buy > 0 and ongrid_charge > 0 and grid_buy < ongrid_charge and (ongrid_charge - grid_buy) > 50:
                     p_home = ongrid_charge - grid_buy
-            
+
             else:
                 # 电表不可用 (No CT)
                 if ongrid_supply > 0:
@@ -1642,7 +1649,7 @@ class JackeryDataCoordinator:
 
         except Exception as e:
             _LOGGER.error(f"Error calculating energy flow: {e}")
-            
+
         return data
 
     def _distribute_data(self, data: dict) -> None:
@@ -1749,14 +1756,13 @@ async def async_setup_entry(
     device_sn = config.get("device_sn")
 
     coordinator = JackeryDataCoordinator(hass, topic_prefix, token, mqtt_host, device_sn)
-    coordinator.config_entry_id = config_entry.entry_id
     coordinator._config_entry_id = config_entry.entry_id
-    
+
     # Register callback for dynamic entities
     def add_entities_callback(new_entities):
         async_add_entities(new_entities)
     coordinator.add_entities_callback = add_entities_callback
-    
+
     hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
 
     entities = []
@@ -1859,7 +1865,7 @@ class JackerySensor(SensorEntity):
             elif "power" in value:
                 self._attr_native_value = value["power"]
             else:
-                self._attr_native_value = str(value)
+                self._attr_native_value = str(value)  # type: ignore[assignment]
         else:
             value_map = self._config.get("value_map")
             if value_map is not None:
@@ -1867,7 +1873,7 @@ class JackerySensor(SensorEntity):
                 try:
                     self._attr_native_value = value_map.get(int(value), str(value))
                 except (TypeError, ValueError):
-                    self._attr_native_value = str(value)
+                    self._attr_native_value = str(value)  # type: ignore[assignment]
             else:
                 scale = self._config.get("scale", 1)
                 try:
@@ -1930,7 +1936,7 @@ class JackerySubDeviceSensor(SensorEntity):
         self._attr_state_class = self._sensor_config.get("state_class")
         if self._sensor_config.get("options"):
             self._attr_options = self._sensor_config["options"]
-        
+
         # Unique ID: jackery_ct_{sn}_power, jackery_plug_{sn}_energy, etc.
         safe_key = self._sensor_key.replace("_", "") # e.g. energy_import -> energyimport
         self._attr_unique_id = f"jackery_{device_name.lower()}_{plug_sn}_{safe_key}"
@@ -2066,7 +2072,7 @@ class JackerySubDeviceSensor(SensorEntity):
                         non_zero = [v for v in [a_egy, b_egy, c_egy] if v]
                         if len(non_zero) == 1:
                             val = non_zero[0]
-        
+
         # Fallback logic for specific keys if needed (like Power)
         if val is None:
              if target_key == "outPw":
@@ -2098,7 +2104,7 @@ class JackerySubDeviceSensor(SensorEntity):
                      cn_egy = my_plug.get("CnphaseEgy") or my_plug.get("cnPhaseEgy") or 0
                      if any(v is not None for v in [an_egy, bn_egy, cn_egy]):
                          val = float(an_egy) + float(bn_egy) + float(cn_egy)
-        
+
         if val is not None:
             try:
                 scale = self._sensor_config.get("scale", 1)
