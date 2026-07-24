@@ -275,6 +275,16 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.0.1
+
+#### `jackery_home_power` negative values clamped to 0
+
+The home power formula can temporarily yield a negative result due to asynchronous
+sensor updates between the SmartMeter and the SolarVault. Since house loads cannot be
+negative, any negative result is now clamped to 0.
+
+---
+
 ### What's new in v2.0.0
 
 #### Multi-Instance support

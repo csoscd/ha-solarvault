@@ -1639,6 +1639,9 @@ class JackeryDataCoordinator:
                 else:
                     p_home = 0.0
 
+            # House loads cannot be negative — clamp any sensor-timing artefact to 0.
+            p_home = max(0.0, p_home)
+
             # Store calculated values
             data["calc_home_power"] = p_home
             data["calc_batt_net_power"] = p_batt

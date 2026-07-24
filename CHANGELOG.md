@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.0.1] – 2026-07-24
+
+### Fixed
+
+- **`jackery_home_power` could show negative values**: The base formula
+  `p_home = p_grid - p_ong` can temporarily yield a negative result when the SmartMeter
+  (type-101, ~11 s cadence) and the SolarVault (type-2, ~11 s cadence) are read at
+  different points in time — for example when `grid_sell` momentarily exceeds
+  `ongrid_supply` due to asynchronous sensor updates. House loads cannot be negative, so
+  any negative result is a measurement artefact. Added `p_home = max(0.0, p_home)` clamp
+  after all formula branches. Grid charging (`inOngridPw > 0`) is correctly handled by
+  the formula itself and does not produce negative values.
+
+---
+
 ## [2.0.0] – 2026-07-23
 
 ### Added
