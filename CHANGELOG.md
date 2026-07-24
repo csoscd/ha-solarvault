@@ -58,6 +58,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Unique ID format**: All entity unique IDs now include the device SN
   (`jackery_{sn}_{entity}` instead of `jackery_{entity}`). Migration runs automatically.
 
+### CI / Development
+
+- **Ruff** linter + formatter added (`pyproject.toml`, rules E/F/I/W/UP, line-length 120).
+  26 existing style issues auto-fixed on adoption.
+- **mypy** type checker added (`ignore_missing_imports = true` for HA's dynamic typing);
+  7 type errors in production code fixed on adoption.
+- **pytest-cov** coverage reporting added (`--cov-fail-under=30`; actual: ~53 %).
+- **Translation completeness check** (`tools/check_translations.py`): compares all
+  `translations/*.json` against `strings.json`; fails CI on any missing key.
+  `translations/zh-Hans.json` removed (upstream original, 143 missing keys, outdated).
+- **Integration tests** (`tests/test_config_flow.py`): 4 tests using the real HA test
+  framework (`pytest-homeassistant-custom-component`).
+- **Dependabot** (`.github/dependabot.yml`): weekly Monday updates for GitHub Actions.
+- **GitHub Actions** workflow (`validate.yml`) extended with a dedicated `lint` job
+  (Ruff + mypy + translation check) alongside the existing `validate` and `tests` jobs.
+
 ---
 
 ## [1.3.9] – 2026-07-17

@@ -246,10 +246,32 @@ Restarting the SolarVault (via the Jackery app or directly on the device) causes
 #### Running the tests
 
 ```bash
+uv sync --group test
 uv run pytest tests/ -v
 ```
 
-Tests cover the energy-flow calculation logic, MQTT message routing (including regression tests for the CT-cache bug), and sensor value transformations. No real MQTT broker or Home Assistant installation is required.
+Tests cover energy-flow calculation logic, MQTT message routing (regression tests for the CT-cache bug), sensor value transforms, and config flow integration tests (using the real HA test framework). Coverage is reported after every run; the minimum threshold is 30 %.
+
+#### Linting & type checking
+
+```bash
+uv sync --group lint
+uv run ruff check custom_components/jackery/   # linter + import order
+uv run mypy custom_components/jackery/         # type checker
+python tools/check_translations.py            # translation completeness
+```
+
+#### CI pipeline
+
+Every push and pull request runs three GitHub Actions jobs automatically:
+
+| Job | Checks |
+|-----|--------|
+| **Lint** | Ruff, mypy, translation completeness (`tools/check_translations.py`) |
+| **Tests** | pytest with coverage (`--cov-fail-under=30`) |
+| **Validate** | HACS validation, Hassfest validation |
+
+[Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
 
 ---
 
