@@ -1016,7 +1016,7 @@ class JackeryDataCoordinator:
 
         # Re-Auth guard — prevents multiple simultaneous re-auth flows
         self._reauth_started: bool = False
-        self._config_entry_id: str = ""  # set by async_setup_entry
+        self.config_entry_id: str = ""  # set by async_setup_entry
 
         self._topic_status_wildcard = f"{self._topic_root}/device/+/status"
         self._topic_event_wildcard = f"{self._topic_root}/device/+/event"
@@ -1248,7 +1248,7 @@ class JackeryDataCoordinator:
         from homeassistant.helpers import device_registry as dr
         registry = dr.async_get(self.hass)
         model = DEVICE_TYPE_MODEL_MAP.get(self._device_type or 0, DEFAULT_MODEL)
-        identifier = self._device_sn or self._config_entry_id
+        identifier = self._device_sn or self.config_entry_id
         device = registry.async_get_device(identifiers={(DOMAIN, identifier)})
         if device:
             registry.async_update_device(device.id, model=model, sw_version=self._soft_ver)
@@ -1264,7 +1264,7 @@ class JackeryDataCoordinator:
         self.hass.async_create_task(
             self.hass.config_entries.flow.async_init(
                 DOMAIN,
-                context={"source": SOURCE_REAUTH, "entry_id": self._config_entry_id},
+                context={"source": SOURCE_REAUTH, "entry_id": self.config_entry_id},
                 data={},
             )
         )
@@ -1759,7 +1759,7 @@ async def async_setup_entry(
     device_sn = config.get("device_sn")
 
     coordinator = JackeryDataCoordinator(hass, topic_prefix, token, mqtt_host, device_sn)
-    coordinator._config_entry_id = config_entry.entry_id
+    coordinator.config_entry_id = config_entry.entry_id
 
     # Register callback for dynamic entities
     def add_entities_callback(new_entities):
