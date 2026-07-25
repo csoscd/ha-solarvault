@@ -24,10 +24,12 @@ _AUTO_STANDBY_OPTIONS: dict[str, int] = {
 }
 _AUTO_STANDBY_VALUE_TO_OPTION: dict[int, str] = {v: k for k, v in _AUTO_STANDBY_OPTIONS.items()}
 
-# maxOutPw: only two valid values match what the Jackery app allows (800 W / 2500 W)
+# maxOutPw: valid values as offered by the Jackery app
+# SV3 Pro: 800 W / 1200 W; SV3 Pro Max: 800 W / 2500 W
 # Keys are translation keys; values are the watt values sent to the device.
 _MAX_FEED_IN_OPTIONS: dict[str, int] = {
     "w800": 800,
+    "w1200": 1200,
     "w2500": 2500,
 }
 _MAX_FEED_IN_VALUE_TO_OPTION: dict[int, str] = {v: k for k, v in _MAX_FEED_IN_OPTIONS.items()}

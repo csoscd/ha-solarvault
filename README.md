@@ -51,7 +51,7 @@
 |---|---|---|---|---|
 | Number | SOC Charge Limit | `socChgLimit` | 0–100 % | Maximum SOC the battery charges to |
 | Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
-| Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung); only the two values supported by the app are offered to prevent invalid configurations |
+| Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 1200 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung). SV3 Pro: 800/1200 W. SV3 Pro Max: 800/2500 W. Only app-supported values are offered to prevent invalid configurations. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
 | Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
 | Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
@@ -272,6 +272,48 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.0.2
+
+#### SmartMeter and expansion battery sensors no longer disappear after HA restart
+
+A regression in v2.0.0 caused SmartMeter 3P, BP2500, and smart plug entities to never
+be created (or recreated) after a Home Assistant restart or integration reload. All values
+were absent; reverting to v2.0.0 was the only workaround (see Issue #7).
+
+**Root cause:** The coordinator attribute `config_entry_id` was accidentally renamed to
+`_config_entry_id` (private) in v2.0.0, while the `hasattr(self, "config_entry_id")`
+guards in the sub-device discovery code still checked the old public name.
+The guards always evaluated to `False`, so sub-device entities were never instantiated.
+
+This is fixed in v2.0.2 by restoring the public attribute name.
+
+#### Duplicate "unavailable" entities cleaned up on upgrade
+
+The v2.0.0 entity migration contained two bugs that left orphaned entities in the HA UI
+(showing "unavailable" or "unknown" alongside working duplicates):
+
+1. Main-device sensors with `battery_*` or `ct_*` in their name (e.g. `Battery SoC`,
+   `CT Status`) were skipped by the migration and kept their old unique ID — causing them
+   to be re-created as orphaned entities.
+2. Switch and number entities were migrated to the wrong unique-ID format
+   (`…_main_swEps` instead of `…_switch_swEps`), leaving both the wrongly-renamed entity
+   and a fresh duplicate.
+
+v2.0.2 detects and removes these orphaned/wrongly-migrated entities on startup. No manual
+cleanup needed.
+
+> **Note for users upgrading from v1.x**: After updating and restarting Home Assistant,
+> duplicate "unavailable" entities are removed automatically. A browser hard-refresh
+> (Ctrl+Shift+R) may be needed if the UI still shows stale entries.
+
+#### Max Feed-in Power: 1200 W option for SV3 Pro
+
+The `Max Feed-in Power` select entity now includes `1200 W (SV3 Pro)` as an option,
+alongside `800 W` and `2500 W (SV3 Pro Max)`. Previously, SV3 Pro users with 1200 W set
+in the app saw "unknown" in the select entity (Issue #5).
 
 ---
 

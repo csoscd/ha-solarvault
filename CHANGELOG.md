@@ -5,6 +5,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.0.2] – 2026-07-25
+
+### Fixed
+
+- **SmartMeter and expansion battery entities never created after HA restart** (Bug #7):
+  In v2.0.0, the coordinator attribute `config_entry_id` was renamed to
+  `_config_entry_id` (private), but the `hasattr(self, "config_entry_id")` guards in
+  `_check_for_new_plugs()` and `_check_for_new_expansion_batteries()` still checked the
+  old public name — which always returned `False`. As a result, SmartMeter, BP2500, and
+  smart plug entities were never created after HA restart or integration reload.
+  Fixed by restoring the public attribute name throughout the coordinator.
+
+- **Entity migration leaving duplicate "unavailable" sensors** (v2.0.0 migration bugs):
+  Three bugs in `_migrate_unique_ids()` caused entities not to be migrated correctly,
+  leaving orphaned "unavailable" entities alongside newly created duplicates:
+  1. The sub-prefix skip check (`battery_*`, `ct_*`) incorrectly skipped main-device
+     sensors like `jackery_battery_soc` and `jackery_ct_status` (matched prefix but were
+     not sub-device sensors). Fixed by requiring the character after the prefix to be
+     uppercase (sub-device SNs always start with uppercase).
+  2. Switch and number entities migrated to the wrong unique-id format: `jackery_main_{key}`
+     was migrated to `jackery_{sn}_main_{key}`, but the v2.0.0 code generates
+     `jackery_{sn}_switch_{key}` / `jackery_{sn}_number_{key}`. Fixed by using the entity's
+     `entity_id` platform prefix (`switch.` / `number.`) to select the correct target format.
+  3. The migration now uses direct entity registry manipulation instead of the callback-based
+     `async_migrate_entries` approach, so it can detect and resolve conflicts: if a correctly
+     named entity already exists (created fresh by a prior v2.0.x run), the orphaned old
+     entity is deleted rather than causing a unique-id collision. Wrongly-migrated
+     `jackery_{sn}_main_*` entities left by v2.0.1 are also cleaned up.
+
+### Added
+
+- **Max Feed-in Power: 1200 W option for SV3 Pro** (Issue #5):
+  The `Max Feed-in Power` select entity now includes `1200 W (SV3 Pro)` alongside the
+  existing `800 W` and `2500 W (SV3 Pro Max)` options. Previously, SV3 Pro devices with
+  1200 W configured via the app showed "unknown" in the select entity.
+
+---
+
 ## [2.0.1] – 2026-07-24
 
 ### Fixed

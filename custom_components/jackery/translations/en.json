@@ -50,7 +50,8 @@
                 "name": "Max Feed-in Power (OnGrid)",
                 "state": {
                     "w800": "800 W",
-                    "w2500": "2500 W"
+                    "w1200": "1200 W (SV3 Pro)",
+                    "w2500": "2500 W (SV3 Pro Max)"
                 }
             }
         },

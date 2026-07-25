@@ -4,7 +4,7 @@ import logging
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
@@ -17,13 +17,21 @@ PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.BUTTON,
 async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Migrate entity unique IDs from v1.x single-instance format to v2.0 multi-instance format.
 
-    Old main-sensor format:   jackery_{sensor_id}
-    New main-sensor format:   jackery_{device_sn}_{sensor_id}
+    Old main-sensor format:    jackery_{sensor_id}
+    New main-sensor format:    jackery_{device_sn}_{sensor_id}
+
+    Old switch/number format:  jackery_main_{mqtt_key}
+    New switch format:         jackery_{device_sn}_switch_{mqtt_key}
+    New number format:         jackery_{device_sn}_number_{mqtt_key}
 
     Old control-entity format: jackery_{config_entry_id}_{x}
     New control-entity format: jackery_{device_sn}_{x}
 
-    Sub-device sensors already contain the sub-device SN and are left as-is.
+    Sub-device sensors (SmartMeter, expansion battery, plug) already contain the
+    sub-device SN (uppercase) and are left as-is.
+
+    v2.0.1 bug residue: entities with unique_id jackery_{device_sn}_main_{key} were
+    created by the buggy v2.0.1 migration — they are removed here.
     """
     device_sn = entry.data.get("device_sn", "").strip()
     if not device_sn:
@@ -32,30 +40,72 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     entry_id = entry.entry_id
     new_prefix = f"jackery_{device_sn}_"
 
-    @callback
-    def _migrate(entity_entry: er.RegistryEntry) -> dict | None:
+    ent_reg = er.async_get(hass)
+    all_entries = list(er.async_entries_for_config_entry(ent_reg, entry_id))
+    existing_uids: set[str] = {e.unique_id for e in all_entries if e.unique_id}
+
+    for entity_entry in all_entries:
         uid = entity_entry.unique_id
         if not uid or not uid.startswith("jackery_"):
-            return None
-        # Already in new format
+            continue
+
         if uid.startswith(new_prefix):
-            return None
+            # Remove wrongly-migrated jackery_{sn}_main_* entities from v2.0.1 bug 2
+            suffix_after_sn = uid[len(new_prefix):]
+            if suffix_after_sn.startswith("main_"):
+                _LOGGER.info(
+                    "Removing v2.0.1 wrongly-migrated entity: %s (%s)",
+                    uid, entity_entry.entity_id,
+                )
+                ent_reg.async_remove(entity_entry.entity_id)
+            continue
+
         suffix = uid[len("jackery_"):]
-        # Sub-device sensors: contain sub-device SN, identified by device_name prefix
+
+        # Sub-device sensors: identified by uppercase SN after device-name prefix.
+        # v1.3.9 format: jackery_SmartMeter_{SN}_{key}, jackery_Battery_{SN}_{key}
+        # The character after the prefix is uppercase for sub-device SNs.
+        is_subdevice = False
         for sub_prefix in ("smartmeter_", "battery_", "plug_", "ct_"):
             if suffix.startswith(sub_prefix):
-                return None
-        # Control entities: jackery_{config_entry_id}_{x} → jackery_{device_sn}_{x}
+                rest = suffix[len(sub_prefix):]
+                if rest and rest[0].isupper():
+                    is_subdevice = True
+                    break
+        if is_subdevice:
+            continue
+
+        # Determine target unique_id
         if suffix.startswith(f"{entry_id}_"):
+            # Control entities: jackery_{entry_id}_{x} → jackery_{device_sn}_{x}
             new_suffix = suffix[len(f"{entry_id}_"):]
-            new_uid = f"{new_prefix}{new_suffix}"
+            target_uid = f"{new_prefix}{new_suffix}"
+        elif suffix.startswith("main_"):
+            # Switches/numbers: use entity_id platform prefix to pick correct target
+            mqtt_key = suffix[len("main_"):]
+            if entity_entry.entity_id.startswith("switch."):
+                target_uid = f"{new_prefix}switch_{mqtt_key}"
+            elif entity_entry.entity_id.startswith("number."):
+                target_uid = f"{new_prefix}number_{mqtt_key}"
+            else:
+                target_uid = f"{new_prefix}{suffix}"
         else:
             # Main sensors: jackery_{sensor_id} → jackery_{device_sn}_{sensor_id}
-            new_uid = f"{new_prefix}{suffix}"
-        _LOGGER.info("Migrating unique_id: %s → %s", uid, new_uid)
-        return {"new_unique_id": new_uid}
+            target_uid = f"{new_prefix}{suffix}"
 
-    await er.async_migrate_entries(hass, entry.entry_id, _migrate)
+        if target_uid in existing_uids:
+            # Target already exists (created fresh by v2.0.1) — delete old orphan to
+            # eliminate duplicate "unavailable" entities in the UI.
+            _LOGGER.info(
+                "Removing orphaned entity: %s (%s) — target %s already present",
+                uid, entity_entry.entity_id, target_uid,
+            )
+            ent_reg.async_remove(entity_entry.entity_id)
+        else:
+            _LOGGER.info("Migrating unique_id: %s → %s", uid, target_uid)
+            ent_reg.async_update_entity(entity_entry.entity_id, new_unique_id=target_uid)
+            existing_uids.discard(uid)
+            existing_uids.add(target_uid)
 
     # Migrate main device identifier in device registry from config_entry_id to device_sn
     device_reg = dr.async_get(hass)
