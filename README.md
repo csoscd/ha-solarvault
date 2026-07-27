@@ -292,11 +292,15 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ### What's new in v2.2.0
 
-#### HTO910A Meter Collector support (Issue #19)
+#### Smart Meter D0 Reader support (Issue #19)
 
-The **Jackery HTO910A** (devType=4, subType=7) is a single-phase smart meter reader that appears in
-the `collectors` array of type-101 messages — a field our integration previously silently ignored.
-Version 2.2.0 adds full support:
+The **Jackery Smart Meter D0 Reader** (model HTO910A, devType=4, subType=7) reads the optical D0 infrared
+interface of German electricity meters (IEC 62056-21 / SML protocol). It sits magnetically on the IR port
+of the meter and reports the **total** grid import/export power that the meter measures — no per-phase
+breakdown (the underlying household connection can still be 3-phase).
+
+The device appears in a `collectors` array within type-101 messages — a field our integration previously
+silently ignored. Version 2.2.0 adds full support:
 
 | Sensor | MQTT field | Description |
 |---|---|---|

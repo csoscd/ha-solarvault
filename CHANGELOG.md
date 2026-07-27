@@ -9,15 +9,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **HTO910A Meter Collector support** (Issue #19): The Jackery HTO910A (devType=4, subType=7)
-  now creates 5 HA sensors: Grid Import Power (`inPw`), Grid Export Power (`outPw`),
-  Communication State, Communication Mode, IP Address. The device appears in the `collectors`
-  array of type-101 messages — previously this array was silently ignored.
+- **Smart Meter D0 Reader support** (Issue #19): The Jackery Smart Meter D0 Reader (model
+  HTO910A, devType=4, subType=7) reads the optical D0 infrared interface of German electricity
+  meters (IEC 62056-21 / SML protocol) and reports total grid import/export power.
+  The device appears in the `collectors` array of type-101 messages — previously this array
+  was silently ignored. Now creates 5 HA sensors per device: Grid Import Power (`inPw`),
+  Grid Export Power (`outPw`), Communication State, Communication Mode, IP Address.
   Translations for EN / DE / FR included.
 
-- **Energy flow integration for HTO910A**: `jackery_home_power` now uses HTO910A data as a
-  CT source when the SmartMeter 3P (HTO907A) is not present. The HTO910A `inPw`/`outPw`
-  values feed directly into the `p_grid` calculation.
+- **Energy flow integration for D0 Reader**: `jackery_home_power` now uses D0 Reader
+  `inPw`/`outPw` as grid measurement source when the SmartMeter 3P (HTO907A) is not present.
 
 ---
 

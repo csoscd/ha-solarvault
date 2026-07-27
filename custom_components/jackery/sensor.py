@@ -938,11 +938,13 @@ SUBDEVICE_SENSORS = {
             "icon": "mdi:ip",
         },
     },
-    # Meter Collector (devType=4, subType=7, model HTO910A)
-    # Single-phase smart meter reader. Appears in the "collectors" array of type-101 messages.
+    # Meter Collector (devType=4, subType=7, model HTO910A "Smart Meter D0 Reader")
+    # Optical D0 interface reader: sits on the IR port of a German electricity meter and reads
+    # meter data via IEC 62056-21 / SML protocol. Reports totals from the meter — no per-phase
+    # breakdown. Appears in the "collectors" array of type-101 messages (not "cts").
     # Fields confirmed from live MQTT capture (Issue #19, 2026-07-24):
-    #   inPw  = grid import power (W)
-    #   outPw = grid export power (W)
+    #   inPw  = total grid import power as reported by the meter (W)
+    #   outPw = total grid export power as reported by the meter (W)
     "collector": {
         "import_power": {
             "key": "inPw",

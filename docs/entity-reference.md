@@ -256,6 +256,24 @@ Entity IDs include the BP2500's serial number. Only cumulative energy is availab
 
 ---
 
+## Smart Meter D0 Reader sensors (HTO910A, devType=4, subType=7)
+
+The **Jackery Smart Meter D0 Reader** reads the optical D0 infrared interface (IEC 62056-21 / SML) of German electricity meters. It reports the totals that the meter itself measures — no per-phase breakdown. The underlying household connection can still be 3-phase.
+
+Entity IDs include the HTO910A's serial number.
+
+| Entity name | entity_id | MQTT field | Notes |
+|---|---|---|---|
+| Grid Import Power | `sensor.jackery_{hto910a_sn}_grid_import_power` | `inPw` | Total grid import (W) |
+| Grid Export Power | `sensor.jackery_{hto910a_sn}_grid_export_power` | `outPw` | Total grid export (W) |
+| Communication State | `sensor.jackery_{hto910a_sn}_communication_state` | `commState` | Online / Offline |
+| Communication Mode | `sensor.jackery_{hto910a_sn}_communication_mode` | `commMode` | LAN / Cloud (Relay) |
+| IP Address | `sensor.jackery_{hto910a_sn}_ip_address` | `wip` | HTO910A IP |
+
+> **For Energy Dashboard:** Use `Grid Import Power` and `Grid Export Power` from the D0 Reader — they reflect exactly what the electricity meter measures. The same `jackery_home_power` formula applies as with the HTO907A.
+
+---
+
 ## Energy Flow Card Plus configuration
 
 ```yaml
