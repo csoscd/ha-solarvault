@@ -290,6 +290,27 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.2.0
+
+#### HTO910A Meter Collector support (Issue #19)
+
+The **Jackery HTO910A** (devType=4, subType=7) is a single-phase smart meter reader that appears in
+the `collectors` array of type-101 messages — a field our integration previously silently ignored.
+Version 2.2.0 adds full support:
+
+| Sensor | MQTT field | Description |
+|---|---|---|
+| Grid Import Power | `inPw` | Grid import power measured by the HTO910A |
+| Grid Export Power | `outPw` | Grid export power measured by the HTO910A |
+| Communication State | `commState` | Online / Offline |
+| Communication Mode | `commMode` | LAN / Cloud (Relay) |
+| IP Address | `wip` | HTO910A IP address on the local network |
+
+The HTO910A data also feeds into the `jackery_home_power` calculation as a CT source (fallback
+when the SmartMeter 3P / HTO907A is not present).
+
+---
+
 ### What's new in v2.1.0
 
 #### Max Grid Feed-In Limit — now writable (Issue #11)

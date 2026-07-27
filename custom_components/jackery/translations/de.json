@@ -211,7 +211,24 @@
             "plug_power": {"name": "Leistung"},
             "plug_energy": {"name": "Energie"},
             "expansion_battery_charge_energy": {"name": "Geladene Energie"},
-            "expansion_battery_discharge_energy": {"name": "Entladene Energie"}
+            "expansion_battery_discharge_energy": {"name": "Entladene Energie"},
+            "collector_import_power": {"name": "Netzbezugsleistung"},
+            "collector_export_power": {"name": "Einspeiseleistung"},
+            "collector_comm_state": {
+                "name": "Kommunikationsstatus",
+                "state": {
+                    "offline": "Offline",
+                    "online": "Online"
+                }
+            },
+            "collector_comm_mode": {
+                "name": "Kommunikationsmodus",
+                "state": {
+                    "lan": "LAN",
+                    "cloud": "Cloud (Relay)"
+                }
+            },
+            "collector_ip_address": {"name": "IP-Adresse"}
         }
     }
 }

@@ -938,6 +938,47 @@ SUBDEVICE_SENSORS = {
             "icon": "mdi:ip",
         },
     },
+    # Meter Collector (devType=4, subType=7, model HTO910A)
+    # Single-phase smart meter reader. Appears in the "collectors" array of type-101 messages.
+    # Fields confirmed from live MQTT capture (Issue #19, 2026-07-24):
+    #   inPw  = grid import power (W)
+    #   outPw = grid export power (W)
+    "collector": {
+        "import_power": {
+            "key": "inPw",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:transmission-tower-import",
+        },
+        "export_power": {
+            "key": "outPw",
+            "unit": UnitOfPower.WATT,
+            "device_class": SensorDeviceClass.POWER,
+            "state_class": SensorStateClass.MEASUREMENT,
+            "icon": "mdi:transmission-tower-export",
+        },
+        "comm_state": {
+            "key": "commState",
+            "device_class": SensorDeviceClass.ENUM,
+            "options": ["offline", "online"],
+            "unit": None,
+            "icon": "mdi:connection",
+        },
+        "comm_mode": {
+            "key": "commMode",
+            "device_class": SensorDeviceClass.ENUM,
+            "options": ["lan", "cloud"],
+            "options_offset": 1,  # commMode is 1-based: 1=LAN, 2=Cloud
+            "unit": None,
+            "icon": "mdi:lan",
+        },
+        "ip_address": {
+            "key": "wip",
+            "unit": None,
+            "icon": "mdi:ip-network",
+        },
+    },
     # Expansion battery (e.g. BP2500, devType=1, subType=0)
     # Only cumulative energy is exposed via MQTT (type-23 messages). No real-time power.
     "expansion_battery": {
@@ -1201,6 +1242,22 @@ class JackeryDataCoordinator:
                             self._data_cache.get("cts"), new_cts
                         )
 
+                    # Meter Collectors (HTO910A, devType=4, subType=7): appear under "collectors"
+                    # key in type-101 devType=2 responses, not under "cts".
+                    raw_collectors = body.get("collectors")
+                    if isinstance(raw_collectors, list) and raw_collectors:
+                        new_collectors = []
+                        for item in raw_collectors:
+                            if not isinstance(item, dict):
+                                continue
+                            new_collectors.append(item)
+                            sn = item.get("deviceSn") or item.get("sn")
+                            if sn:
+                                self._subdevice_last_seen[sn] = now_ts
+                        self._data_cache["collectors"] = _merge_subdevice_list(
+                            self._data_cache.get("collectors"), new_collectors
+                        )
+
                 # Type 106: Full system state (response to type-105 poll)
                 elif msg_code == 106 and isinstance(body, dict):
                     # Normalize workModel (type-106 alias) → workMode (our sensor key)
@@ -1278,9 +1335,9 @@ class JackeryDataCoordinator:
         )
 
     def _check_for_new_plugs(self, data: dict) -> None:
-        """Check and sync plugs/CTs (add new, remove old)."""
+        """Check and sync plugs/CTs/collectors (add new, remove old)."""
         all_devices = []
-        for key in ("plugs", "plug", "cts"):
+        for key in ("plugs", "plug", "cts", "collectors"):
             items = data.get(key)
             if isinstance(items, list):
                 all_devices.extend(items)
@@ -1371,11 +1428,18 @@ class JackeryDataCoordinator:
                 self._known_plugs.add(sn)
 
                 if hasattr(self, "config_entry_id"):
-                    is_ct = dev_type in CT_DEV_TYPES
-                    if is_ct:
+                    # Determine sensor group and data source key
+                    is_collector = dev_type == 4 and sub_type == 7
+                    is_ct = dev_type in CT_DEV_TYPES and not is_collector
+                    if is_collector:
+                        sensor_group = "collector"
+                        data_key = "collectors"
+                    elif is_ct:
                         sensor_group = "ct_3phase" if (dev_type == 3 and sub_type == 5) else "ct"
+                        data_key = "cts"
                     else:
                         sensor_group = "plug"
+                        data_key = "plugs"
 
                     group_config = SUBDEVICE_SENSORS.get(sensor_group, {})
                     for sensor_key, sensor_cfg in group_config.items():
@@ -1386,12 +1450,12 @@ class JackeryDataCoordinator:
                             sensor_config=sensor_cfg,
                             coordinator=self,
                             config_entry_id=self.config_entry_id,
-                            use_cts=is_ct,
+                            data_key=data_key,
                             sensor_group=sensor_group,
                         )
                         new_entities.append(entity)
 
-                    if not is_ct:
+                    if not is_ct and not is_collector:
                         from .switch import JackeryPlugSwitch
                         switch_entity = JackeryPlugSwitch(
                             plug_sn=sn,
@@ -1593,6 +1657,22 @@ class JackeryDataCoordinator:
                     grid_buy = float(t_phase_pw or 0)
                     grid_sell = float(tn_phase_pw or 0)
                     grid_available = True
+
+            # Fallback 1: Meter Collector (HTO910A, devType=4, subType=7)
+            # Appears in data_cache["collectors"]; fields inPw/outPw are direct W values.
+            if not grid_available:
+                collectors = data.get("collectors")
+                if collectors and isinstance(collectors, list):
+                    for collector in collectors:
+                        if not isinstance(collector, dict):
+                            continue
+                        in_pw = collector.get("inPw")
+                        out_pw = collector.get("outPw")
+                        if in_pw is not None or out_pw is not None:
+                            grid_buy = float(in_pw or 0)
+                            grid_sell = float(out_pw or 0)
+                            grid_available = True
+                            break
 
             # 兼容旧逻辑或直接字段 (如果 cts 不存在)
             if not grid_available:
@@ -1918,7 +1998,8 @@ class JackerySubDeviceSensor(SensorEntity):
         sensor_config: dict,
         coordinator: JackeryDataCoordinator,
         config_entry_id: str,
-        use_cts: bool = False,
+        data_key: str = "plugs",
+        use_cts: bool = False,       # legacy — prefer data_key
         use_expansion: bool = False,
         sensor_group: str = "",
     ) -> None:
@@ -1928,12 +2009,21 @@ class JackerySubDeviceSensor(SensorEntity):
         self._sensor_key = sensor_key
         self._sensor_config = sensor_config
         self._coordinator = coordinator
-        self._use_cts = use_cts
         self._use_expansion = use_expansion
+        # data_key determines which cache entry to read sub-device data from.
+        # Explicit data_key takes precedence; fall back to use_cts for backward compat.
+        if data_key != "plugs":
+            self._data_key = data_key
+        elif use_cts:
+            self._data_key = "cts"
+        else:
+            self._data_key = "plugs"
 
         if self._use_expansion:
             device_name = "Battery"
-        elif self._use_cts:
+        elif self._data_key == "collectors":
+            device_name = "Collector"
+        elif self._data_key == "cts":
             device_name = "SmartMeter" if dev_type == 3 else "CT"
         else:
             device_name = "Plug"
@@ -1993,10 +2083,9 @@ class JackerySubDeviceSensor(SensorEntity):
                 pass
             return
 
-        if self._use_cts:
-            source = data.get("cts")
-        else:
-            source = data.get("plugs") or data.get("plug")
+        source = data.get(self._data_key)
+        if self._data_key == "plugs":
+            source = source or data.get("plug")
         if not source or not isinstance(source, list):
             return
 
@@ -2008,8 +2097,13 @@ class JackerySubDeviceSensor(SensorEntity):
 
         target_key = self._sensor_config.get("key")
 
-        # ct_3phase sensors use direct field access — no subType branching needed
-        if self._use_cts and self._dev_type == 3:
+        # Direct field access: ct_3phase (HTO907A, cts, devType=3) and
+        # collector (HTO910A, collectors, devType=4) — no subType phase mapping.
+        is_direct_access = (
+            (self._data_key == "cts" and self._dev_type == 3)
+            or self._data_key == "collectors"
+        )
+        if is_direct_access:
             val = my_plug.get(target_key)
             if val is None:
                 return
@@ -2041,7 +2135,7 @@ class JackerySubDeviceSensor(SensorEntity):
         val = my_plug.get(target_key)
 
         # CT phase mapping by subType (1=A, 2=B, 3=C, 4=Total, 5=Net dual-circuit)
-        if self._use_cts and target_key in {"phasePw", "phaseEgy"}:
+        if self._data_key == "cts" and target_key in {"phasePw", "phaseEgy"}:
             sub_type = my_plug.get("subType")
             if target_key == "phasePw":
                 if sub_type == 1:
@@ -2140,7 +2234,7 @@ class JackerySubDeviceSensor(SensorEntity):
             "comm_state": raw.get("commState"),
             "name": raw.get("name") or raw.get("scanName"),
         }
-        if self._use_cts and self._dev_type == 3:
+        if self._data_key == "cts" and self._dev_type == 3:
             # SmartMeter 3P (HTO907A)
             attrs.update({
                 "import_l1_w": raw.get("aPhasePw"),
@@ -2154,11 +2248,18 @@ class JackerySubDeviceSensor(SensorEntity):
                 "sche_phase": raw.get("schePhase"),
                 "fun_form": raw.get("funForm"),
             })
-        elif self._use_cts:
+        elif self._data_key == "cts":
             attrs.update({
                 "tPhasePw": raw.get("tPhasePw"),
                 "tPhaseEgy": raw.get("tPhaseEgy"),
                 "tnPhaseEgy": raw.get("tnPhaseEgy"),
+            })
+        elif self._data_key == "collectors":
+            # Meter Collector (HTO910A)
+            attrs.update({
+                "scan_name": raw.get("scanName"),
+                "in_pw": raw.get("inPw"),
+                "out_pw": raw.get("outPw"),
             })
         else:
             attrs.update({

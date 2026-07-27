@@ -419,7 +419,24 @@
             },
             "expansion_battery_discharge_energy": {
                 "name": "Énergie de décharge"
-            }
+            },
+            "collector_import_power": {"name": "Puissance importée du réseau"},
+            "collector_export_power": {"name": "Puissance injectée sur le réseau"},
+            "collector_comm_state": {
+                "name": "État de la communication",
+                "state": {
+                    "offline": "Hors ligne",
+                    "online": "En ligne"
+                }
+            },
+            "collector_comm_mode": {
+                "name": "Mode de communication",
+                "state": {
+                    "lan": "Réseau local",
+                    "cloud": "Cloud (relais)"
+                }
+            },
+            "collector_ip_address": {"name": "Adresse IP"}
         }
     }
 }
