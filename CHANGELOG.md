@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.1.0] – 2026-07-27
+
+### Added
+
+- **Max Grid Feed-In Limit** (`maxFeedGrid`): New writable Number entity (0–800 W, step 10 W).
+  Closes Issue #11. The device-reported value from type-106 remains visible as a read-back sensor
+  (`Max Feed Grid Power`). Note: `maxFeedGrid` is distinct from `maxOutPw` — the latter is the
+  user-selectable app limit (controlled via the existing "Max Feed-In Power" select entity).
+
+---
+
 ## [2.0.3] – 2026-07-26
 
 ### Added

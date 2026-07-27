@@ -714,9 +714,9 @@ SENSORS = {
         "device_class": None,
         "state_class": None,
     },
-    # maxFeedGrid (type-106): enforced grid feed-in cap, distinct from maxOutPw (type-2).
-    # Live capture 2026-07-22: maxFeedGrid=800 W while maxOutPw=2500 W — two separate fields.
-    # Read-only; the user-selectable limit is written via maxOutPw (JackeryMaxFeedInSelect).
+    # maxFeedGrid (type-106): enforced system-level grid feed-in cap. Read-back sensor for
+    # the value reported by the device. Writable via Number entity in number.py (Issue #11).
+    # Distinct from maxOutPw (user-selectable app limit, controlled via JackeryMaxFeedInSelect).
     "max_feed_grid_power": {
         "json_key": "maxFeedGrid",
         "name": "Max Feed Grid Power",

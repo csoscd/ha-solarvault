@@ -57,7 +57,7 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | OnGrid Status | `ongridStat` | Grid-tie status: disconnected / connected |
 | CT Status | `ctStat` | CT meter connection status: disconnected / connected |
 | Grid Meter Link | `gridSate` | Grid meter link health: not_linked / linked |
-| Max Feed Grid Power | `maxFeedGrid` | Maximum grid feed-in power reported by the device (from type-106 status) |
+| Max Feed Grid Power | `maxFeedGrid` | Maximum grid feed-in power reported by the device (from type-106 status) — also writable, see control entities |
 
 #### New control entities (SolarVault 3 Pro Max)
 
@@ -67,6 +67,7 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
 | Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 1200 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung). SV3 Pro: 800/1200 W. SV3 Pro Max: 800/2500 W. Only app-supported values are offered to prevent invalid configurations. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
+| Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–800 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (which controls `maxOutPw`, the app-selectable limit of 800/1200/2500 W). Confirmed writable via cmd=5 (Issue #11). |
 | Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
 | Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
 | Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
@@ -286,6 +287,17 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.1.0
+
+#### Max Grid Feed-In Limit — now writable (Issue #11)
+
+`maxFeedGrid` is now a writable Number entity (0–800 W, step 10 W). Previously it was read-only.
+The device-reported value from type-106 is still visible as a separate read-back sensor.
+
+> **Note:** `maxFeedGrid` is distinct from `maxOutPw` (the "Max Feed-In Power" select entity with 800/1200/2500 W options). The exact relationship between the two fields is not fully documented by Jackery, but live captures confirm they can hold different values simultaneously.
 
 ---
 

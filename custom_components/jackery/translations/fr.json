@@ -67,6 +67,9 @@
             },
             "default_output_power": {
                 "name": "Puissance de sortie par défaut"
+            },
+            "max_feed_grid_power": {
+                "name": "Limite maximale d'injection réseau"
             }
         },
         "switch": {
