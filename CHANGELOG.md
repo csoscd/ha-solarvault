@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.0] – 2026-07-27
+
+### Added
+
+- **HTO910A Meter Collector support** (Issue #19): The Jackery HTO910A (devType=4, subType=7)
+  now creates 5 HA sensors: Grid Import Power (`inPw`), Grid Export Power (`outPw`),
+  Communication State, Communication Mode, IP Address. The device appears in the `collectors`
+  array of type-101 messages — previously this array was silently ignored.
+  Translations for EN / DE / FR included.
+
+- **Energy flow integration for HTO910A**: `jackery_home_power` now uses HTO910A data as a
+  CT source when the SmartMeter 3P (HTO907A) is not present. The HTO910A `inPw`/`outPw`
+  values feed directly into the `p_grid` calculation.
+
+---
+
 ## [2.1.0] – 2026-07-27
 
 ### Added

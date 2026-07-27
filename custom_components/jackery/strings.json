@@ -211,7 +211,24 @@
             "plug_power": {"name": "Power"},
             "plug_energy": {"name": "Energy"},
             "expansion_battery_charge_energy": {"name": "Charge Energy"},
-            "expansion_battery_discharge_energy": {"name": "Discharge Energy"}
+            "expansion_battery_discharge_energy": {"name": "Discharge Energy"},
+            "collector_import_power": {"name": "Grid Import Power"},
+            "collector_export_power": {"name": "Grid Export Power"},
+            "collector_comm_state": {
+                "name": "Communication State",
+                "state": {
+                    "offline": "Offline",
+                    "online": "Online"
+                }
+            },
+            "collector_comm_mode": {
+                "name": "Communication Mode",
+                "state": {
+                    "lan": "LAN",
+                    "cloud": "Cloud (Relay)"
+                }
+            },
+            "collector_ip_address": {"name": "IP Address"}
         }
     }
 }
