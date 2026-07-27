@@ -59,7 +59,8 @@
             "soc_charge_limit": {"name": "SOC Charge Limit"},
             "soc_discharge_limit": {"name": "SOC Discharge Limit"},
             "soc_force_charge": {"name": "SOC Force Charge Target"},
-            "default_output_power": {"name": "Default Output Power"}
+            "default_output_power": {"name": "Default Output Power"},
+            "max_feed_grid_power": {"name": "Max Grid Feed-In Limit"}
         },
         "switch": {
             "auto_standby_allowed": {"name": "Auto Standby Allowed"},

@@ -42,6 +42,15 @@ NUMBERS = {
         "min": 0, "max": 200, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
+    # maxFeedGrid: enforced system-level grid feed-in cap (from type-106).
+    # Confirmed writable via cmd=5 (Issue #11 — tested with 140 W, ack'd by device).
+    # Distinct from maxOutPw (user-selectable app limit via JackeryMaxFeedInSelect).
+    # Valid range 0–800 W in 10 W steps.
+    "maxFeedGrid": {
+        "translation_key": "max_feed_grid_power",
+        "min": 0, "max": 800, "step": 10,
+        "unit": UnitOfPower.WATT, "optimistic": True,
+    },
 }
 
 
