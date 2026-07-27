@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.0.3] – 2026-07-26
+
+### Added
+
+- **WLAN IP sensor** (Issue #10): New sensor `WLAN IP` (`wip`) exposes the SolarVault's
+  IP address on the WiFi network. Useful for diagnostics alongside the existing `Ethernet IP`
+  sensor.
+
+- **Entity reference documentation** (Issue #9): New file `docs/entity-reference.md`
+  explains which sensors to use for energy dashboards, why SmartMeter sensors are preferred
+  over SolarVault-internal sensors for grid import/export, and lists all 100+ entities by
+  category with their entity_id patterns.
+
+### Changed
+
+- **German translation `low_power`**: Renamed from "Schwachstrom" to "Energiesparmodus"
+  for better readability (suggested in Issue #10).
+
+---
+
 ## [2.0.2] – 2026-07-25
 
 ### Fixed

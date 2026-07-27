@@ -128,6 +128,7 @@
             "max_grid_standby_power": {"name": "Max. Netz-Standby-Leistung"},
             "wifi_ssid": {"name": "WLAN-SSID"},
             "ethernet_ip": {"name": "Ethernet-IP"},
+            "wlan_ip": {"name": "WLAN-IP"},
             "device_capability": {"name": "Gerätefähigkeiten"},
             "device_status": {
                 "name": "Gerätestatus",
@@ -137,7 +138,7 @@
                     "alarm": "Alarm",
                     "fault": "Fehler",
                     "standby": "Standby",
-                    "low_power": "Schwachstrom"
+                    "low_power": "Energiesparmodus"
                 }
             },
             "ongrid_status": {

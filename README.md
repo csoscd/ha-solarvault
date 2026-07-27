@@ -18,6 +18,19 @@
 
 ---
 
+## Entity Reference
+
+With 100+ entities, finding the right sensor can be tricky.
+**[→ docs/entity-reference.md](docs/entity-reference.md)** lists all sensors by category, explains which ones to use for energy dashboards, and explains why SmartMeter sensors are preferred over SolarVault-internal sensors for grid import/export.
+
+Entity IDs follow the pattern:
+```
+{domain}.jackery_{sn_lowercase}_{entity_display_name_slug}
+```
+Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
+
+---
+
 ### Changes vs. the original
 
 #### New sensors (SolarVault 3 Pro Max)
@@ -37,6 +50,7 @@
 | CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
 | SOC Force Charge Target | `socForceChg` | See control entities below |
 | WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
+| WLAN IP | `wip` | IP address of the SolarVault on the WiFi network |
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
 | Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
 | Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power |
@@ -272,6 +286,26 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.0.3
+
+#### WLAN IP sensor
+
+New sensor `WLAN IP` (`wip`) shows the SolarVault's IP address on the WiFi network.
+Useful for network diagnostics alongside the existing `Ethernet IP` sensor.
+
+#### Entity reference documentation
+
+New file [`docs/entity-reference.md`](docs/entity-reference.md) explains which sensors
+to use for energy dashboards, why SmartMeter sensors are preferred for grid import/export,
+and lists all 100+ entities by category with their entity_id patterns.
+
+#### German translation: `low_power` renamed
+
+The German label for the `low_power` device status state was changed from "Schwachstrom"
+to "Energiesparmodus" (more natural phrasing).
 
 ---
 

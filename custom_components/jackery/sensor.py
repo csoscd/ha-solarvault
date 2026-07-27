@@ -566,6 +566,14 @@ SENSORS = {
         "device_class": None,
         "state_class": None,
     },
+    "wlan_ip": {
+        "json_key": "wip",
+        "name": "WLAN IP",
+        "unit": None,
+        "icon": "mdi:ip-network",
+        "device_class": None,
+        "state_class": None,
+    },
     "device_capability": {
         "json_key": "ability",
         "name": "Device Capability",

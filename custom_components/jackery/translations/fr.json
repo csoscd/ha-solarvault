@@ -260,6 +260,9 @@
             "ethernet_ip": {
                 "name": "Adresse IP Ethernet"
             },
+            "wlan_ip": {
+                "name": "Adresse IP Wi-Fi"
+            },
             "device_capability": {
                 "name": "Capacités de l’appareil"
             },
