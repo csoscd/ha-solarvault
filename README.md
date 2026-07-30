@@ -63,8 +63,8 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 
 | Entity type | Entity | MQTT field | Range / Options | Description |
 |---|---|---|---|---|
-| Number | SOC Charge Limit | `socChgLimit` | 0–100 % | Maximum SOC the battery charges to |
-| Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
+| Number | SOC Charge Limit | `socChgLimit` | 50–100 % | Maximum SOC the battery charges to |
+| Number | SOC Discharge Limit | `socDischgLimit` | 5–49 % | Minimum SOC the battery discharges to |
 | Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 1200 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung). SV3 Pro: 800/1200 W. SV3 Pro Max: 800/2500 W. Only app-supported values are offered to prevent invalid configurations. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
 | Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–800 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (which controls `maxOutPw`, the app-selectable limit of 800/1200/2500 W). Confirmed writable via cmd=5 (Issue #11). |

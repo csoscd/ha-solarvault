@@ -19,11 +19,13 @@ _LOGGER = logging.getLogger(__name__)
 NUMBERS = {
     "socChgLimit": {
         "translation_key": "soc_charge_limit",
-        "min": 0, "max": 100, "step": 1,
+        "min": 50, "max": 100, "step": 1,
+        "min_key": "minSocChg", "max_key": "maxSocChg",
     },
     "socDischgLimit": {
         "translation_key": "soc_discharge_limit",
-        "min": 0, "max": 100, "step": 1,
+        "min": 5, "max": 49, "step": 1,
+        "min_key": "minSocDischg", "max_key": "maxSocDischg",
     },
     # maxOutPw moved to select.py (only 800 W / 2500 W are valid app values)
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
@@ -134,17 +136,37 @@ class JackeryMainNumber(NumberEntity):
         await super().async_will_remove_from_hass()
 
     def _update_from_coordinator(self, data: dict) -> None:
-        if self._key not in data:
-            return
-        val = data.get(self._key)
-        if val is None:
-            return
-        try:
-            self._attr_native_value = float(val)
-            self._attr_available = True
+        cfg = NUMBERS.get(self._key, {})
+        changed = False
+
+        min_key = cfg.get("min_key")
+        if min_key and min_key in data:
+            new_min = float(data[min_key])
+            if new_min != self._attr_native_min_value:
+                self._attr_native_min_value = new_min
+                changed = True
+
+        max_key = cfg.get("max_key")
+        if max_key and max_key in data:
+            new_max = float(data[max_key])
+            if new_max != self._attr_native_max_value:
+                self._attr_native_max_value = new_max
+                changed = True
+
+        if self._key in data:
+            val = data.get(self._key)
+            if val is not None:
+                try:
+                    new_val = float(val)
+                    if not self._attr_available or new_val != self._attr_native_value:
+                        self._attr_native_value = new_val
+                        self._attr_available = True
+                        changed = True
+                except (TypeError, ValueError):
+                    pass
+
+        if changed:
             self.async_write_ha_state()
-        except (TypeError, ValueError):
-            pass
 
     async def async_set_native_value(self, value: float) -> None:
         if self._optimistic:

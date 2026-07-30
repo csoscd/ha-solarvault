@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] – unreleased
+
+### Fixed
+
+- **SOC Charge Limit slider range** corrected to 50–100 % (device enforces minimum 50 %;
+  previously the slider allowed 0–100 %, but values below 50 % were silently ignored).
+  Confirmed identical on SolarVault 3 and SolarVault 3 Pro Max.
+
+- **SOC Discharge Limit slider range** corrected to 5–49 % (device enforces maximum 49 %;
+  previously the slider allowed 0–100 %, but values above 49 % were silently ignored).
+
+- **Smart plug switch creation filter** tightened: switches are now only created for
+  devType=6 (smart plugs). The previous check (`devType != 2`) would incorrectly have
+  created switches for CT devices or collectors if they appeared in the subdevice list.
+
+### Added
+
+- **Dynamic SOC limit bounds**: When the device reports `minSocChg`/`maxSocChg`/`minSocDischg`/
+  `maxSocDischg` fields, the slider min/max values update automatically to reflect device-reported
+  limits (adopted from upstream).
+
+### Refactored
+
+- Plug helper functions (`plug_comm_mode`, `plug_mqtt_control_allowed`, `should_create_plug_switch`,
+  `COMM_MODE_LABELS`, `COMM_MODE_LOCAL`, `COMM_MODE_CLOUD`) moved from `switch.py` to `sensor.py`
+  as shared public exports. `switch.py` now imports from `sensor.py` instead of maintaining
+  private duplicates.
+
+---
+
 ## [2.2.0] – 2026-07-27
 
 ### Added
