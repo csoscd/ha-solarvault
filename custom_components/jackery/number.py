@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfPower
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -21,11 +21,13 @@ NUMBERS = {
         "translation_key": "soc_charge_limit",
         "min": 50, "max": 100, "step": 1,
         "min_key": "minSocChg", "max_key": "maxSocChg",
+        "unit": PERCENTAGE,
     },
     "socDischgLimit": {
         "translation_key": "soc_discharge_limit",
         "min": 5, "max": 49, "step": 1,
         "min_key": "minSocDischg", "max_key": "maxSocDischg",
+        "unit": PERCENTAGE,
     },
     # maxOutPw moved to select.py (only 800 W / 2500 W are valid app values)
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
@@ -35,6 +37,7 @@ NUMBERS = {
     "socForceChg": {
         "translation_key": "soc_force_charge",
         "min": 0, "max": 100, "step": 1,
+        "unit": PERCENTAGE,
     },
     # defaultPw: fallback output power for Benutzerdefiniert mode (workModel=4).
     # Active when no time-based schedule entry is in effect.

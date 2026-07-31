@@ -26,6 +26,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `maxSocDischg` fields, the slider min/max values update automatically to reflect device-reported
   limits (adopted from upstream).
 
+- **Percentage unit on SOC sliders**: `SOC Charge Limit`, `SOC Discharge Limit` and
+  `SOC Force Charge` now display the `%` unit in the HA slider UI (closes Issue #16).
+
 ### Refactored
 
 - Plug helper functions (`plug_comm_mode`, `plug_mqtt_control_allowed`, `should_create_plug_switch`,
