@@ -118,6 +118,8 @@ class JackeryMainNumber(NumberEntity):
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = step
+        self._attr_available: bool = False
+        self._attr_native_value: float | None = None
         if translation_key:
             self._attr_translation_key = translation_key
         if unit is not None:
