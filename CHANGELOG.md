@@ -29,6 +29,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Percentage unit on SOC sliders**: `SOC Charge Limit`, `SOC Discharge Limit` and
   `SOC Force Charge` now display the `%` unit in the HA slider UI (closes Issue #16).
 
+### Fixed
+
+- **`maxFeedGrid` slider range** corrected to 0–2500 W (was 0–800 W). The field maps to
+  the app's "Einspeiseleistungsgrenze" and limits export to the **public electricity grid**
+  (not delivery to the house AC bus). Live MQTT capture confirmed the device accepts values
+  up to 2500 W. Effect is only visible when the device is actually exporting to the public
+  grid; in Eigenverbrauch mode with near-zero net export the limit appears inactive.
+
 ### Refactored
 
 - Plug helper functions (`plug_comm_mode`, `plug_mqtt_control_allowed`, `should_create_plug_switch`,

@@ -47,13 +47,16 @@ NUMBERS = {
         "min": 0, "max": 200, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
-    # maxFeedGrid: enforced system-level grid feed-in cap (from type-106).
-    # Confirmed writable via cmd=5 (Issue #11 — tested with 140 W, ack'd by device).
-    # Distinct from maxOutPw (user-selectable app limit via JackeryMaxFeedInSelect).
-    # Valid range 0–800 W in 10 W steps.
+    # maxFeedGrid: public grid export cap — limits how much power the SolarVault
+    # may export to the PUBLIC electricity grid (not the house AC bus).
+    # App "Einspeiseleistungsgrenze", 0–2500 W in 10 W steps.
+    # Confirmed writable via cmd=5 (device acks with cmd=107).
+    # Distinct from maxOutPw (house AC bus limit, 800/2500 W select).
+    # Effect only visible when the device is actually exporting to the public grid;
+    # in Eigenverbrauch mode with near-zero net export the limit appears inactive.
     "maxFeedGrid": {
         "translation_key": "max_feed_grid_power",
-        "min": 0, "max": 800, "step": 10,
+        "min": 0, "max": 2500, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
 }
