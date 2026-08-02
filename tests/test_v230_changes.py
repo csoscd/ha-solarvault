@@ -1,8 +1,7 @@
 """Tests for v2.3.0 changes: SOC bounds, dynamic min/max, plug helpers."""
 from __future__ import annotations
 
-import pytest
-
+from custom_components.jackery.number import NUMBERS
 from custom_components.jackery.sensor import (
     COMM_MODE_CLOUD,
     COMM_MODE_LABELS,
@@ -11,8 +10,6 @@ from custom_components.jackery.sensor import (
     plug_mqtt_control_allowed,
     should_create_plug_switch,
 )
-from custom_components.jackery.number import NUMBERS
-
 
 # ---------------------------------------------------------------------------
 # SOC limit bounds
@@ -53,7 +50,8 @@ class TestSocBounds:
 
 class TestDynamicBoundsUpdate:
     def _make_number(self, key: str):
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
+
         from custom_components.jackery.number import JackeryMainNumber
         coord = MagicMock()
         coord._device_sn = "TESTSN"

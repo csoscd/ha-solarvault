@@ -1,9 +1,9 @@
 """Tests for JackerySensor._update_from_coordinator special-case transformations."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.jackery.sensor import JackeryDataCoordinator, JackerySensor, SENSORS
+from custom_components.jackery.sensor import SENSORS, JackeryDataCoordinator, JackerySensor
 
 
 def make_sensor(sensor_id: str, coord: JackeryDataCoordinator) -> JackerySensor:

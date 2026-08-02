@@ -1,10 +1,7 @@
 """Tests for JackeryDataCoordinator._handle_message MQTT routing and cache logic."""
 import json
 
-import pytest
-
 from tests.conftest import FakeMqttMsg
-
 
 TOPIC_STATUS = "hb/device/TESTSN001/status"
 TOPIC_EVENT = "hb/device/TESTSN001/event"
@@ -249,3 +246,78 @@ def test_type106_does_not_overwrite_workmode_if_present(coordinator):
         "body": {"workModel": 2, "workMode": 3},
     })
     assert coordinator._data_cache["workMode"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Device SN isolation (Ü1, v2.0.0)
+# ---------------------------------------------------------------------------
+
+def test_message_with_wrong_sn_is_ignored(coordinator):
+    """Messages from a different device SN must not modify the cache (Ü1)."""
+    coordinator._device_sn = "RIGHTSN"
+    coordinator._topic_root = "hb"
+
+    send(coordinator, "hb/device/WRONGSN/status", {
+        "type": 2,
+        "body": {"batSoc": 42},
+    })
+
+    assert coordinator._data_cache.get("batSoc") is None, \
+        "Data from a different device SN must be silently discarded"
+
+
+# ---------------------------------------------------------------------------
+# Re-Auth: type-123/errorCode=401 triggers re-auth flow (v2.0.0)
+# ---------------------------------------------------------------------------
+
+def test_type123_error_401_triggers_reauth(coordinator):
+    """Type-123 message with errorCode=401 must set _reauth_started=True."""
+    from unittest.mock import MagicMock
+    coordinator.hass = MagicMock()
+    coordinator.config_entry_id = "test_entry_id"
+
+    send(coordinator, TOPIC_STATUS, {
+        "type": 123,
+        "body": {"errorCode": 401},
+    })
+
+    assert coordinator._reauth_started is True, \
+        "Re-auth must be triggered on type-123/401"
+
+
+def test_type123_non_401_does_not_trigger_reauth(coordinator):
+    """Type-123 with a non-401 error code must not trigger re-auth."""
+    send(coordinator, TOPIC_STATUS, {
+        "type": 123,
+        "body": {"errorCode": 200},
+    })
+
+    assert coordinator._reauth_started is False
+
+
+# ---------------------------------------------------------------------------
+# Expansion battery null-value filter (v1.3.8)
+# ---------------------------------------------------------------------------
+
+def test_expansion_battery_null_values_do_not_overwrite_cache(coordinator):
+    """Null values in type-23 expansion battery payload must not overwrite real data.
+
+    Regression v1.3.8: device occasionally sends null for inEgy/outEgy during restart.
+    """
+    bp_sn = "HQ2C10000444HP3"
+    # Pre-populate cache with real data
+    send(coordinator, TOPIC_STATUS, {
+        "type": 23,
+        "body": {"deviceSn": bp_sn, "devType": 1, "subType": 0, "inEgy": 196, "outEgy": 5},
+    })
+    assert coordinator._data_cache["expansion_batteries"][bp_sn]["inEgy"] == 196
+
+    # Device sends null for inEgy — must not overwrite the cached value
+    send(coordinator, TOPIC_STATUS, {
+        "type": 23,
+        "body": {"deviceSn": bp_sn, "devType": 1, "subType": 0, "inEgy": None, "outEgy": 10},
+    })
+
+    exp = coordinator._data_cache["expansion_batteries"][bp_sn]
+    assert exp["inEgy"] == 196, "Null must not overwrite previously cached real value"
+    assert exp["outEgy"] == 10, "Non-null update must be applied"

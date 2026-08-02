@@ -3,7 +3,6 @@
 The method is pure (aside from logging) and has no HA dependency,
 so all tests run without a hass fixture.
 """
-import pytest
 from custom_components.jackery.sensor import JackeryDataCoordinator
 
 
@@ -270,3 +269,61 @@ def test_ct_with_empty_cts_list():
             "inOngridPw": 0, "outOngridPw": 0, "cts": []}
     result = calc(data)
     assert result["grid_available"] is False
+
+
+# ---------------------------------------------------------------------------
+# p_home clamp: negative values from sensor timing artefacts → 0 (v2.0.1)
+# ---------------------------------------------------------------------------
+
+def test_home_power_clamped_to_zero_on_sensor_timing_artefact():
+    """Regression v2.0.1: asynchronous sampling can briefly yield negative p_home.
+
+    Scenario: outOngridPw=50 W (unit AC output), but SmartMeter reports tnPhasePw=100 W
+    (net export). Both values are momentarily inconsistent due to different update cadences.
+    Without the clamp: p_ong = -50, p_grid = -100, p_home = -100 - (-50) = -50 W (impossible).
+    With the clamp: p_home = max(0.0, -50) = 0.0 W.
+    """
+    data = {
+        "pvPw": 0,
+        "swEpsInPw": 0, "swEpsOutPw": 0,
+        "inOngridPw": 0, "outOngridPw": 50,
+        "cts": [{"deviceSn": "SM", "tPhasePw": 0, "tnPhasePw": 100, "devType": 3, "subType": 5}],
+    }
+    result = calc(data)
+    assert result["calc_home_power"] == 0.0, \
+        "Negative home power from sensor timing artefact must be clamped to 0"
+
+
+# ---------------------------------------------------------------------------
+# gridSellPw=0 explicit presence — grid_available must be True (v1.1.68 fix)
+# ---------------------------------------------------------------------------
+
+def test_grid_available_true_when_grid_sell_is_explicitly_zero():
+    """Regression v1.1.68: gridSellPw=0 was treated as falsy and grid_available stayed False.
+
+    Both gridBuyPw and gridSellPw present, both zero → net grid = 0 but grid IS available.
+    The explicit is-None check (not 'or') must correctly classify this.
+    """
+    data = {
+        "pvPw": 0,
+        "swEpsInPw": 0, "swEpsOutPw": 0,
+        "inOngridPw": 0, "outOngridPw": 0,
+        "gridBuyPw": 0, "gridSellPw": 0,
+    }
+    result = calc(data)
+    assert result["grid_available"] is True, \
+        "grid_available must be True when gridBuyPw and gridSellPw are both explicitly 0"
+    assert result["calc_grid_net_power"] == 0.0
+
+
+def test_grid_available_true_when_only_sell_is_present_and_zero():
+    """gridBuyPw=100, gridSellPw=0 — net=100 W, grid_available=True."""
+    data = {
+        "pvPw": 0,
+        "swEpsInPw": 0, "swEpsOutPw": 0,
+        "inOngridPw": 0, "outOngridPw": 0,
+        "gridBuyPw": 100, "gridSellPw": 0,
+    }
+    result = calc(data)
+    assert result["grid_available"] is True
+    assert result["calc_grid_net_power"] == 100.0
