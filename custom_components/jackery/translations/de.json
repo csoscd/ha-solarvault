@@ -131,6 +131,7 @@
             "ethernet_ip": {"name": "Ethernet-IP"},
             "wlan_ip": {"name": "WLAN-IP"},
             "device_capability": {"name": "Gerätefähigkeiten"},
+            "func_enable": {"name": "Funktions-Flags"},
             "device_status": {
                 "name": "Gerätestatus",
                 "state": {

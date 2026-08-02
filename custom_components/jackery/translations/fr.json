@@ -269,6 +269,9 @@
             "device_capability": {
                 "name": "Capacités de l’appareil"
             },
+            "func_enable": {
+                "name": "Indicateurs de fonctions"
+            },
             "device_status": {
                 "name": "État de l’appareil",
                 "state": {

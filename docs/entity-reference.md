@@ -312,3 +312,20 @@ If you don't have a SmartMeter, replace the grid sensors with:
       consumption: sensor.jackery_{sn}_grid_import_power
       production: sensor.jackery_{sn}_grid_export_power
 ```
+
+---
+
+## Migration von der Original-Integration (Jackery-Official/jackery)
+
+Wenn du von der Original-Integration auf diesen Fork wechselst, ändern sich folgende Entity-IDs:
+
+| Original (Upstream) | Dieser Fork | Grund |
+|---|---|---|
+| `sensor.jackery_{sn}_average_soc` | `sensor.jackery_{sn}_bms_soc` | Klarerer Name |
+| `sensor.jackery_{sn}_work_mode` | `select.jackery_{sn}_work_mode` | Ersetzt durch actionable Select |
+| `number.jackery_{sn}_max_output_power_ongrid` | `select.jackery_{sn}_max_feed_in_power_ongrid` | Nur 800/1200/2500 W gültig |
+| `switch.jackery_{sn}_...` (unique_id Format) | … | Abweichendes unique_id Schema |
+
+Die Integration führt bei der ersten Einrichtung eine automatische Migration durch.
+Automationen und Dashboards die auf die alten Entity-IDs referenzieren müssen manuell
+aktualisiert werden.
