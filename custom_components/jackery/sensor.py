@@ -1091,6 +1091,18 @@ _FLAT_META_KEYS: frozenset[str] = frozenset(
     {"type", "eventId", "messageId", "ts", "deviceType", "token", "softver", "body"}
 )
 
+# Real-time power fields shared between type-2 (~11 s) and type-106 (~30 s).
+# type-2 is more current; once the cache has a type-2 reading for these keys,
+# the snapshot values from a type-106 poll must not overwrite them.
+# At startup (empty cache) type-106 is still allowed to populate them so the
+# initial state is available for the ~11 s before the first type-2 arrives.
+_TYPE106_SKIP_IF_ESTABLISHED: frozenset[str] = frozenset({
+    "batInPw", "batOutPw",
+    "pvPw", "pv1", "pv2", "pv3", "pv4",
+    "swEpsInPw", "swEpsOutPw",
+    "stackInPw", "stackOutPw",
+})
+
 
 def plug_comm_mode(item: dict) -> int | None:
     """Read plug commMode (1=local, 2=cloud)."""
@@ -1460,8 +1472,14 @@ class JackeryDataCoordinator:
 
                 # Type 106: Full system state (response to type-105 poll)
                 elif msg_code == 106 and isinstance(body, dict):
-                    # Normalizes workModel (type-106 alias) → workMode (our sensor key)
-                    self._merge_normalized_cache(body)
+                    # Settings (workMode, maxFeedGrid, …): always update.
+                    # Real-time power fields: only populate if not already established
+                    # by a fresher type-2 message — prevents 30 s-stale snapshots
+                    # from overwriting live readings (see _TYPE106_SKIP_IF_ESTABLISHED).
+                    normalized = _normalize_payload_fields(body)
+                    for k, v in normalized.items():
+                        if k not in _TYPE106_SKIP_IF_ESTABLISHED or k not in self._data_cache:
+                            self._data_cache[k] = v
                     _LOGGER.debug("Received type-106 system state (%d fields)", len(body))
 
                 # Type 107: Incremental system update (soc, workMode, …)
