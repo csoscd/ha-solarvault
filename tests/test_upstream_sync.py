@@ -278,34 +278,40 @@ def test_type23_system_alias_normalized(coordinator):
 
 
 # ---------------------------------------------------------------------------
-# Battery power from device fields (type-2 / type-106)
+# Battery power via energy balance (total stack incl. expansion batteries)
 # ---------------------------------------------------------------------------
 
-def test_battery_uses_reported_charge_power():
+def test_total_battery_charge_uses_energy_balance():
+    # batInPw is main-unit-only and is ignored for total battery power.
+    # Energy balance: pv=1000, inOngridPw=0, outOngridPw=0 → total_batt_net=1000
     result = calc({"pvPw": 1000, "batInPw": 820, "batOutPw": 0,
                    "inOngridPw": 0, "outOngridPw": 0})
-    assert result["calc_battery_charge_power"] == 820.0
-    assert result["calc_battery_discharge_power"] == 0.0
-    assert result["calc_batt_net_power"] == 820.0
+    assert result["total_battery_charge_power"] == 1000.0
+    assert result["total_battery_discharge_power"] == 0.0
+    assert result["calc_batt_net_power"] == 1000.0
 
 
-def test_battery_uses_reported_discharge_power():
+def test_total_battery_discharge_uses_energy_balance():
+    # pv=0, outOngridPw=400 → total_batt_net = 0 - 400 = -400 → discharge 400 W
     result = calc({"pvPw": 0, "batInPw": 0, "batOutPw": 430,
                    "inOngridPw": 0, "outOngridPw": 400})
-    assert result["calc_battery_discharge_power"] == 430.0
-    assert result["calc_batt_net_power"] == -430.0
+    assert result["total_battery_discharge_power"] == 400.0
+    assert result["total_battery_charge_power"] == 0.0
+    assert result["calc_batt_net_power"] == -400.0
 
 
-def test_battery_falls_back_to_estimate_without_device_fields():
+def test_total_battery_charge_without_bat_fields():
+    # Energy balance works even without batInPw/batOutPw in the payload.
     result = calc({"pvPw": 1500, "inOngridPw": 0, "outOngridPw": 0})
-    assert result["calc_battery_charge_power"] == 1500.0
+    assert result["total_battery_charge_power"] == 1500.0
 
 
-def test_battery_zero_reported_values_are_used():
-    """batInPw=0/batOutPw=0 is a valid reading and must not fall back to the estimate."""
-    result = calc({"pvPw": 1500, "batInPw": 0, "batOutPw": 0,
-                   "inOngridPw": 0, "outOngridPw": 0})
-    assert result["calc_batt_net_power"] == 0.0
+def test_total_battery_charge_with_eps_output():
+    # EPS output reduces the energy available for battery charging.
+    # pvPw=500, swEpsOutPw=100, outOngridPw=50 → total_batt_net=350
+    result = calc({"pvPw": 500, "swEpsOutPw": 100, "swEpsInPw": 0,
+                   "inOngridPw": 0, "outOngridPw": 50})
+    assert result["total_battery_charge_power"] == 350.0
 
 
 # ---------------------------------------------------------------------------

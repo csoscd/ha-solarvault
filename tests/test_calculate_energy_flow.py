@@ -23,21 +23,20 @@ def test_battery_charging_when_pv_exceeds_load():
     }
     result = calc(data)
     assert result["calc_batt_net_power"] == 3000.0
-    assert result["calc_battery_charge_power"] == 3000.0
-    assert result["calc_battery_discharge_power"] == 0.0
+    assert result["total_battery_charge_power"] == 3000.0
+    assert result["total_battery_discharge_power"] == 0.0
 
 
-def test_battery_discharging_when_ongrid_draws():
+def test_battery_charging_when_grid_feeds_unit():
     data = {
         "pvPw": 0,
         "swEpsInPw": 0, "swEpsOutPw": 0,
         "inOngridPw": 500, "outOngridPw": 0,
     }
     result = calc(data)
-    # p_ong = 500 - 0 = 500 (flows into unit), so battery gets charged? No —
-    # inOngridPw = grid charges the unit; p_ong = 500 positive → p_batt increases
-    assert result["calc_battery_charge_power"] == 500.0
-    assert result["calc_battery_discharge_power"] == 0.0
+    # inOngridPw=500 → grid charges the battery; total_batt_net = 0 + 500 - 0 = 500
+    assert result["total_battery_charge_power"] == 500.0
+    assert result["total_battery_discharge_power"] == 0.0
 
 
 def test_battery_discharging_when_unit_feeds_grid():
@@ -48,8 +47,8 @@ def test_battery_discharging_when_unit_feeds_grid():
     }
     result = calc(data)
     # p_ong = 0 - 2000 = -2000 → p_batt = -2000 → discharge
-    assert result["calc_battery_discharge_power"] == 2000.0
-    assert result["calc_battery_charge_power"] == 0.0
+    assert result["total_battery_discharge_power"] == 2000.0
+    assert result["total_battery_charge_power"] == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -260,8 +259,8 @@ def test_empty_data_does_not_crash():
     result = calc({})
     assert "calc_batt_net_power" in result
     assert "calc_home_power" in result
-    assert result["calc_battery_charge_power"] == 0.0
-    assert result["calc_battery_discharge_power"] == 0.0
+    assert result["total_battery_charge_power"] == 0.0
+    assert result["total_battery_discharge_power"] == 0.0
 
 
 def test_ct_with_empty_cts_list():

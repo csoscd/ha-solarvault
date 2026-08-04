@@ -62,7 +62,7 @@ SENSORS = {
     },
     "battery_charge_power": {
         "json_key": "batInPw",
-        "name": "Battery Charge Power",
+        "name": "Main Unit Charge Power",
         "unit": UnitOfPower.WATT,
         "icon": "mdi:battery-charging",
         "device_class": SensorDeviceClass.POWER,
@@ -70,7 +70,23 @@ SENSORS = {
     },
     "battery_discharge_power": {
         "json_key": "batOutPw",
-        "name": "Battery Discharge Power",
+        "name": "Main Unit Discharge Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:battery-minus",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "total_battery_charge_power": {
+        "json_key": "total_battery_charge_power",
+        "name": "Total Battery Charge Power",
+        "unit": UnitOfPower.WATT,
+        "icon": "mdi:battery-charging",
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "total_battery_discharge_power": {
+        "json_key": "total_battery_discharge_power",
+        "name": "Total Battery Discharge Power",
         "unit": UnitOfPower.WATT,
         "icon": "mdi:battery-minus",
         "device_class": SensorDeviceClass.POWER,
@@ -217,9 +233,9 @@ SENSORS = {
         "state_class": SensorStateClass.TOTAL_INCREASING,
         "scale": 0.01,
     },
-    "grid_export_power": { # System -> Grid/Home (inOngirdPw)
+    "grid_export_power": { # System -> AC bus / home (outOngridPw); NOT net export to public grid
         "json_key": "outOngridPw",
-        "name": "Grid Export Power",
+        "name": "OnGrid AC Output Power",
         "unit": UnitOfPower.WATT,
         "icon": "mdi:transmission-tower-export",
         "device_class": SensorDeviceClass.POWER,
@@ -354,22 +370,6 @@ SENSORS = {
         "device_class": SensorDeviceClass.POWER,
         "state_class": SensorStateClass.MEASUREMENT,
     },
-    "calc_battery_charge_power": {
-        "json_key": "calc_battery_charge_power",
-        "name": "Battery Charge Power (Calc)",
-        "unit": UnitOfPower.WATT,
-        "icon": "mdi:battery-charging",
-        "device_class": SensorDeviceClass.POWER,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
-    "calc_battery_discharge_power": {
-        "json_key": "calc_battery_discharge_power",
-        "name": "Battery Discharge Power (Calc)",
-        "unit": UnitOfPower.WATT,
-        "icon": "mdi:battery-minus",
-        "device_class": SensorDeviceClass.POWER,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
     "grid_net_power": {
         "json_key": "calc_grid_net_power",
         "name": "Grid Net Power",
@@ -479,7 +479,7 @@ SENSORS = {
         "scale": 0.01,
     },
 
-    # Wechselrichter-Stack
+    # Wechselrichter-Stack — semantics unclear; do NOT use for energy balance calculations
     "stack_in_power": {
         "json_key": "stackInPw",
         "name": "Inverter Stack Input Power",
@@ -2089,22 +2089,16 @@ class JackeryDataCoordinator:
                 if grid_buy < ongrid_charge and (ongrid_charge - grid_buy) <= 50:
                     p_grid = p_ong
 
-            # 5. Battery
-            # Prefer the device's own measurement (batInPw/batOutPw — present in type-2
-            # and type-106) over the derived estimate P_batt = P_pv + P_ac + P_ong.
-            # The estimate ignores conversion losses and the unit's own standby draw,
-            # so it drifts by tens of watts; it stays as fallback for firmware that
-            # does not report the battery power fields.
-            bat_in = _safe_float(data.get("batInPw"))
-            bat_out = _safe_float(data.get("batOutPw"))
-            if _field_present(data, "batInPw") or _field_present(data, "batOutPw"):
-                p_batt = bat_in - bat_out
-                calc_batt_charge = bat_in
-                calc_batt_discharge = bat_out
-            else:
-                p_batt = pv + p_ac + p_ong
-                calc_batt_charge = max(0.0, p_batt)
-                calc_batt_discharge = max(0.0, -p_batt)
+            # 5. Battery (total stack — main unit + expansion batteries)
+            # batInPw/batOutPw are main-unit-only and do NOT include expansion batteries
+            # (e.g. BP2500). Confirmed 2026-08-04 by parallel MQTT/app measurement:
+            # energy balance matches the Jackery app within ≤13 W; batInPw diverges by
+            # 200–300 W when the BP2500 is actively charging.
+            # Formula: PV + grid_in − grid_out_to_ac − eps_out + eps_in
+            total_batt_net = pv + ongrid_charge - ongrid_supply - ac_out + ac_in
+            total_batt_charge = max(0.0, total_batt_net)
+            total_batt_discharge = max(0.0, -total_batt_net)
+            p_batt = total_batt_net
 
             # 6. Home (Calculated)
             p_home = 0.0
@@ -2137,8 +2131,8 @@ class JackeryDataCoordinator:
             # Store calculated values
             data["calc_home_power"] = p_home
             data["calc_batt_net_power"] = p_batt
-            data["calc_battery_charge_power"] = calc_batt_charge
-            data["calc_battery_discharge_power"] = calc_batt_discharge
+            data["total_battery_charge_power"] = total_batt_charge
+            data["total_battery_discharge_power"] = total_batt_discharge
             data["grid_available"] = grid_available
             data["calc_grid_net_power"] = p_grid if grid_available else None
 
