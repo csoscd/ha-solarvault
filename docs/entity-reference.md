@@ -117,7 +117,7 @@ or under **Settings → Devices & Services → Jackery → your device → entit
 | Grid AC Input Power | `sensor.jackery_{sn}_grid_in_power` | `gridInPw` | Type-106 |
 | Grid AC Output Power | `sensor.jackery_{sn}_grid_out_power` | `gridOutPw` | Type-106 |
 | Max Output Power (OnGrid) | `sensor.jackery_{sn}_max_output_power_ongrid` | `maxOutPw` | → also a select entity |
-| Max Feed Grid Power | `sensor.jackery_{sn}_max_feed_grid_power` | `maxFeedGrid` | Type-106, read-only |
+| Max Feed Grid Power | `sensor.jackery_{sn}_max_feed_grid_power` | `maxFeedGrid` | Type-106; also a writable number entity (see Control Entities) |
 
 ### EPS (off-grid socket)
 
@@ -186,10 +186,11 @@ or under **Settings → Devices & Services → Jackery → your device → entit
 | Select | Work Mode | `select.jackery_{sn}_work_mode` | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus |
 | Select | Auto Standby Mode | `select.jackery_{sn}_auto_standby_mode` | `autoStandby` | invalid / standby / on |
 | Select | Max Feed-in Power (OnGrid) | `select.jackery_{sn}_max_feed_in_power_ongrid` | `maxOutPw` | 800 / 1200 / 2500 W |
-| Number | SOC Charge Limit | `number.jackery_{sn}_soc_charge_limit` | `socChgLimit` | 0–100 % |
-| Number | SOC Discharge Limit | `number.jackery_{sn}_soc_discharge_limit` | `socDischgLimit` | 0–100 % |
+| Number | SOC Charge Limit | `number.jackery_{sn}_soc_charge_limit` | `socChgLimit` | 50–100 % (device-enforced) |
+| Number | SOC Discharge Limit | `number.jackery_{sn}_soc_discharge_limit` | `socDischgLimit` | 5–49 % (device-enforced) |
 | Number | SOC Force Charge Target | `number.jackery_{sn}_soc_force_charge_target` | `socForceChg` | 0–100 % |
 | Number | Default Output Power | `number.jackery_{sn}_default_output_power` | `defaultPw` | 0–200 W, Benutzerdefiniert mode |
+| Number | Max Feed Grid Power | `number.jackery_{sn}_max_feed_grid_power` | `maxFeedGrid` | 0–2500 W — limits export to the **public electricity grid** (not house supply); app label "Einspeiseleistungsgrenze". Distinct from Max Feed-in Power (OnGrid) which limits the house AC bus. Only visible when the device is actually exporting to the grid; in Eigenverbrauch mode with near-zero net export the limit appears inactive. |
 | Switch | Auto Standby Allowed | `switch.jackery_{sn}_auto_standby_allowed` | `isAutoStandby` | |
 | Switch | EPS Switch | `switch.jackery_{sn}_eps_switch` | `swEps` | |
 | Switch | Off-Grid Fallback | `switch.jackery_{sn}_off_grid_fallback` | `offGridDown` | |
@@ -216,6 +217,16 @@ These sensors belong to the SmartMeter sub-device. Their entity IDs include the 
 | L3 Export Power | `sensor.jackery_{smartmeter_sn}_l3_export_power` | `cnPhasePw` |
 
 ### Energy (cumulative, type-23)
+
+> ⚠️ **Note: these energy sensors are NOT phase-saldated.**
+> `Grid Import Energy` and `Grid Export Energy` accumulate per-phase gross values independently.
+> If L1 imports 200 W while L3 exports 180 W simultaneously, both counters increase — the net
+> grid exchange of 20 W is not what is counted. This differs from a traditional Ferraris meter,
+> which nets all phases.
+>
+> For phase-saldated energy values (matching a Ferraris meter), use HA's **Riemann Sum Integration**
+> helper on `Grid Import Power` (`tPhasePw`) and `Grid Export Power` (`tnPhasePw`) — these power
+> sensors are already phase-saldated (net across all phases).
 
 | Entity name | entity_id | MQTT field |
 |---|---|---|
@@ -301,3 +312,20 @@ If you don't have a SmartMeter, replace the grid sensors with:
       consumption: sensor.jackery_{sn}_grid_import_power
       production: sensor.jackery_{sn}_grid_export_power
 ```
+
+---
+
+## Migration von der Original-Integration (Jackery-Official/jackery)
+
+Wenn du von der Original-Integration auf diesen Fork wechselst, ändern sich folgende Entity-IDs:
+
+| Original (Upstream) | Dieser Fork | Grund |
+|---|---|---|
+| `sensor.jackery_{sn}_average_soc` | `sensor.jackery_{sn}_bms_soc` | Klarerer Name |
+| `sensor.jackery_{sn}_work_mode` | `select.jackery_{sn}_work_mode` | Ersetzt durch actionable Select |
+| `number.jackery_{sn}_max_output_power_ongrid` | `select.jackery_{sn}_max_feed_in_power_ongrid` | Nur 800/1200/2500 W gültig |
+| `switch.jackery_{sn}_...` (unique_id Format) | … | Abweichendes unique_id Schema |
+
+Die Integration führt bei der ersten Einrichtung eine automatische Migration durch.
+Automationen und Dashboards die auf die alten Entity-IDs referenzieren müssen manuell
+aktualisiert werden.

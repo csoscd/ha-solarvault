@@ -12,49 +12,15 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DOMAIN
+from .sensor import (
+    COMM_MODE_LABELS,
+    plug_comm_mode,
+    plug_mqtt_control_allowed,
+    should_create_plug_switch,
+)
 
 if TYPE_CHECKING:
     from .sensor import JackeryDataCoordinator
-
-_COMM_MODE_LOCAL = 1
-_COMM_MODE_CLOUD = 2
-_COMM_MODE_LABELS: dict[int, str] = {
-    _COMM_MODE_LOCAL: "local",
-    _COMM_MODE_CLOUD: "cloud",
-}
-
-
-def _plug_comm_mode(item: dict[str, Any]) -> int | None:
-    """Read plug commMode (1=local, 2=cloud)."""
-    val = item.get("commMode")
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return None
-
-
-def _plug_mqtt_control_allowed(item: dict[str, Any]) -> tuple[bool, str]:
-    """Return (allowed, reason) for MQTT control of a plug."""
-    mode = _plug_comm_mode(item)
-    if mode == _COMM_MODE_LOCAL:
-        return True, ""
-    if mode == _COMM_MODE_CLOUD:
-        return (
-            False,
-            "Smart plug is cloud-connected (commMode=2) and cannot be controlled via MQTT. "
-            "Please use the Jackery App.",
-        )
-    if mode is None:
-        return (
-            False,
-            "Unknown commMode. MQTT control is only supported when commMode=1 (local).",
-        )
-    return (
-        False,
-        f"Smart plug commMode={mode} does not support MQTT control. Only commMode=1 (local) is supported.",
-    )
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,13 +73,11 @@ async def async_setup_entry(
         ]
     )
 
-    # Add any existing sub-devices as switches (non-CT)
+    # Add any existing sub-devices as switches (smart plugs only)
     for item in coordinator.get_subdevices():
         sn = item.get("deviceSn") or item.get("sn")
         dev_type = item.get("devType")
-        if dev_type is None and item.get("subType") == 2:
-            dev_type = 2
-        if sn and dev_type != 2:
+        if sn and should_create_plug_switch(item):
             entities.append(
                 JackeryPlugSwitch(
                     plug_sn=sn,
@@ -199,7 +163,7 @@ class JackeryPlugSwitch(SwitchEntity):
 
     async def _ensure_mqtt_controllable(self) -> None:
         """Block control when plug is cloud-connected (commMode=2); show persistent notification."""
-        allowed, reason = _plug_mqtt_control_allowed(self._plug_item())
+        allowed, reason = plug_mqtt_control_allowed(self._plug_item())
         if not allowed:
             persistent_notification.async_create(
                 self.hass,
@@ -236,15 +200,15 @@ class JackeryPlugSwitch(SwitchEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         raw = self._plug_item()
-        mode = _plug_comm_mode(raw)
-        mqtt_ok, mqtt_block_reason = _plug_mqtt_control_allowed(raw)
+        mode = plug_comm_mode(raw)
+        mqtt_ok, mqtt_block_reason = plug_mqtt_control_allowed(raw)
         switchval = raw.get("switchSta") if raw.get("switchSta") is not None else raw.get("sysSwitch")
         return {
             "plug_sn": self._plug_sn,
             "dev_type": self._dev_type,
             "commState": raw.get("commState"),
             "commMode": mode,
-            "commMode_label": _COMM_MODE_LABELS.get(mode) if mode is not None else None,
+            "commMode_label": COMM_MODE_LABELS.get(mode) if mode is not None else None,
             "mqtt_controllable": mqtt_ok,
             "mqtt_control_block_reason": mqtt_block_reason or None,
             "scanName": raw.get("scanName") or raw.get("name"),

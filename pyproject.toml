@@ -21,7 +21,7 @@ lint = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "--cov=custom_components/jackery --cov-report=term-missing --cov-fail-under=30"
+addopts = "--cov=custom_components/jackery --cov-report=term-missing --cov-fail-under=50"
 
 [tool.coverage.run]
 source = ["custom_components/jackery"]

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfPower
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -19,11 +19,15 @@ _LOGGER = logging.getLogger(__name__)
 NUMBERS = {
     "socChgLimit": {
         "translation_key": "soc_charge_limit",
-        "min": 0, "max": 100, "step": 1,
+        "min": 50, "max": 100, "step": 1,
+        "min_key": "minSocChg", "max_key": "maxSocChg",
+        "unit": PERCENTAGE,
     },
     "socDischgLimit": {
         "translation_key": "soc_discharge_limit",
-        "min": 0, "max": 100, "step": 1,
+        "min": 5, "max": 49, "step": 1,
+        "min_key": "minSocDischg", "max_key": "maxSocDischg",
+        "unit": PERCENTAGE,
     },
     # maxOutPw moved to select.py (only 800 W / 2500 W are valid app values)
     # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
@@ -33,6 +37,7 @@ NUMBERS = {
     "socForceChg": {
         "translation_key": "soc_force_charge",
         "min": 0, "max": 100, "step": 1,
+        "unit": PERCENTAGE,
     },
     # defaultPw: fallback output power for Benutzerdefiniert mode (workModel=4).
     # Active when no time-based schedule entry is in effect.
@@ -42,13 +47,16 @@ NUMBERS = {
         "min": 0, "max": 200, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
-    # maxFeedGrid: enforced system-level grid feed-in cap (from type-106).
-    # Confirmed writable via cmd=5 (Issue #11 — tested with 140 W, ack'd by device).
-    # Distinct from maxOutPw (user-selectable app limit via JackeryMaxFeedInSelect).
-    # Valid range 0–800 W in 10 W steps.
+    # maxFeedGrid: public grid export cap — limits how much power the SolarVault
+    # may export to the PUBLIC electricity grid (not the house AC bus).
+    # App "Einspeiseleistungsgrenze", 0–2500 W in 10 W steps.
+    # Confirmed writable via cmd=5 (device acks with cmd=107).
+    # Distinct from maxOutPw (house AC bus limit, 800/2500 W select).
+    # Effect only visible when the device is actually exporting to the public grid;
+    # in Eigenverbrauch mode with near-zero net export the limit appears inactive.
     "maxFeedGrid": {
         "translation_key": "max_feed_grid_power",
-        "min": 0, "max": 800, "step": 10,
+        "min": 0, "max": 2500, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
 }
@@ -110,6 +118,8 @@ class JackeryMainNumber(NumberEntity):
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = step
+        self._attr_available: bool = False
+        self._attr_native_value: float | None = None
         if translation_key:
             self._attr_translation_key = translation_key
         if unit is not None:
@@ -134,17 +144,37 @@ class JackeryMainNumber(NumberEntity):
         await super().async_will_remove_from_hass()
 
     def _update_from_coordinator(self, data: dict) -> None:
-        if self._key not in data:
-            return
-        val = data.get(self._key)
-        if val is None:
-            return
-        try:
-            self._attr_native_value = float(val)
-            self._attr_available = True
+        cfg = NUMBERS.get(self._key, {})
+        changed = False
+
+        min_key = cfg.get("min_key")
+        if min_key and min_key in data:
+            new_min = float(data[min_key])
+            if new_min != self._attr_native_min_value:
+                self._attr_native_min_value = new_min
+                changed = True
+
+        max_key = cfg.get("max_key")
+        if max_key and max_key in data:
+            new_max = float(data[max_key])
+            if new_max != self._attr_native_max_value:
+                self._attr_native_max_value = new_max
+                changed = True
+
+        if self._key in data:
+            val = data.get(self._key)
+            if val is not None:
+                try:
+                    new_val = float(val)
+                    if not self._attr_available or new_val != self._attr_native_value:
+                        self._attr_native_value = new_val
+                        self._attr_available = True
+                        changed = True
+                except (TypeError, ValueError):
+                    pass
+
+        if changed:
             self.async_write_ha_state()
-        except (TypeError, ValueError):
-            pass
 
     async def async_set_native_value(self, value: float) -> None:
         if self._optimistic:

@@ -96,10 +96,16 @@
                 "name": "Niveau de charge de la batterie"
             },
             "battery_charge_power": {
-                "name": "Puissance de charge de la batterie"
+                "name": "Puissance de charge unité principale"
             },
             "battery_discharge_power": {
-                "name": "Puissance de décharge de la batterie"
+                "name": "Puissance de décharge unité principale"
+            },
+            "total_battery_charge_power": {
+                "name": "Puissance de charge totale batterie"
+            },
+            "total_battery_discharge_power": {
+                "name": "Puissance de décharge totale batterie"
             },
             "battery_temperature": {
                 "name": "Température de la batterie"
@@ -150,7 +156,7 @@
                 "name": "Énergie importée du réseau"
             },
             "grid_export_power": {
-                "name": "Puissance injectée sur le réseau"
+                "name": "Puissance de sortie AC OnGrid"
             },
             "grid_export_energy": {
                 "name": "Énergie injectée sur le réseau"
@@ -190,12 +196,6 @@
             },
             "battery_net_power": {
                 "name": "Puissance nette de la batterie"
-            },
-            "calc_battery_charge_power": {
-                "name": "Puissance de charge de la batterie (calculée)"
-            },
-            "calc_battery_discharge_power": {
-                "name": "Puissance de décharge de la batterie (calculée)"
             },
             "grid_net_power": {
                 "name": "Puissance nette du réseau"
@@ -268,6 +268,9 @@
             },
             "device_capability": {
                 "name": "Capacités de l’appareil"
+            },
+            "func_enable": {
+                "name": "Indicateurs de fonctions"
             },
             "device_status": {
                 "name": "État de l’appareil",

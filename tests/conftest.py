@@ -1,6 +1,5 @@
 """Shared test fixtures."""
 import time
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,8 +23,13 @@ def coordinator():
     coord._known_plugs = set()
     coord._subdevice_missing_since = {}
     coord._subdevice_last_seen = {}
+    coord._expansion_battery_sns = set()
     coord._start_time = time.time()
     coord._poll_105_counter = 0
+    coord._device_type = None
+    coord._soft_ver = None
+    coord._reauth_started = False
+    coord._ever_received = False
     coord.add_entities_callback = None
     coord.add_switch_entities_callback = None
     coord._data_cache = {}

@@ -20,7 +20,7 @@
 
 ## Entity Reference
 
-With 100+ entities, finding the right sensor can be tricky.
+With 109+ entities, finding the right sensor can be tricky.
 **[→ docs/entity-reference.md](docs/entity-reference.md)** lists all sensors by category, explains which ones to use for energy dashboards, and explains why SmartMeter sensors are preferred over SolarVault-internal sensors for grid import/export.
 
 Entity IDs follow the pattern:
@@ -63,8 +63,8 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 
 | Entity type | Entity | MQTT field | Range / Options | Description |
 |---|---|---|---|---|
-| Number | SOC Charge Limit | `socChgLimit` | 0–100 % | Maximum SOC the battery charges to |
-| Number | SOC Discharge Limit | `socDischgLimit` | 0–100 % | Minimum SOC the battery discharges to |
+| Number | SOC Charge Limit | `socChgLimit` | 50–100 % | Maximum SOC the battery charges to |
+| Number | SOC Discharge Limit | `socDischgLimit` | 5–49 % | Minimum SOC the battery discharges to |
 | Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 1200 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung). SV3 Pro: 800/1200 W. SV3 Pro Max: 800/2500 W. Only app-supported values are offered to prevent invalid configurations. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
 | Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–800 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (which controls `maxOutPw`, the app-selectable limit of 800/1200/2500 W). Confirmed writable via cmd=5 (Issue #11). |
@@ -156,8 +156,8 @@ entities:
     icon: mdi:transmission-tower
   battery:
     entity:
-      consumption: sensor.jackery_battery_charge_power_calc
-      production: sensor.jackery_battery_discharge_power_calc
+      consumption: sensor.jackery_total_battery_charge_power
+      production: sensor.jackery_total_battery_discharge_power
     state_of_charge: sensor.jackery_bms_soc
     name: Battery
     icon: mdi:battery
@@ -179,8 +179,8 @@ energy_date_selection: false
 ![demo](img/demo.png)
 
 > **Note on battery sensors:**
-> `sensor.jackery_battery_charge_power` reports the charge power of the main SolarVault unit only.
-> `sensor.jackery_battery_charge_power_calc` sums the charge power across all connected battery units (e.g. SolarVault 3 Pro Max + BP2500) and is the correct sensor for multi-unit setups.
+> `sensor.jackery_battery_charge_power` (renamed: "Main Unit Charge Power") reports the charge power of the SolarVault main unit **only** — expansion batteries like the BP2500 are not included.
+> `sensor.jackery_total_battery_charge_power` derives the full-stack battery power via energy balance (PV + grid import − AC output − EPS output) and covers all connected battery units. Use this one for dashboards in multi-unit setups.
 > `sensor.jackery_bms_soc` reports the combined BMS state of charge across the entire battery stack and should be preferred over `sensor.jackery_battery_soc` for multi-unit setups.
 
 #### Alternative: power-flow-card-plus with a signed net sensor
@@ -190,7 +190,7 @@ It requires a single signed battery power sensor (positive = discharging, negati
 Create a **Template sensor helper** in Home Assistant with this formula:
 
 ```
-{{ states('sensor.jackery_battery_discharge_power_calc') | float(0) - states('sensor.jackery_battery_charge_power_calc') | float(0) }}
+{{ states('sensor.jackery_total_battery_discharge_power') | float(0) - states('sensor.jackery_total_battery_charge_power') | float(0) }}
 ```
 
 Then use it in your card config:
@@ -283,10 +283,34 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | Job | Checks |
 |-----|--------|
 | **Lint** | Ruff, mypy, translation completeness (`tools/check_translations.py`) |
-| **Tests** | pytest with coverage (`--cov-fail-under=30`) |
+| **Tests** | pytest with coverage (`--cov-fail-under=50`) |
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.3.0
+
+#### Total Battery Power via energy balance
+
+`battery_charge_power` and `battery_discharge_power` cover the **main SolarVault unit only** — the MQTT protocol does not expose real-time power data for expansion batteries such as the BP2500 separately.
+
+Two new sensors derive the **full-stack** battery power from the energy balance formula
+`PV + grid_import − AC_output − EPS_output`:
+
+| Sensor | Description |
+|---|---|
+| **Total Battery Charge Power** | Full-stack charge power, incl. all expansion batteries |
+| **Total Battery Discharge Power** | Full-stack discharge power, incl. all expansion batteries |
+
+These match the Jackery app readout within ≈10 W and are the correct sensors for energy dashboards in multi-unit setups. The old sensors are still available but renamed to **"Main Unit Charge/Discharge Power"** to make their scope explicit.
+
+The `grid_export_power` sensor is also renamed to **"OnGrid AC Output Power"** to clarify that `outOngridPw` is the SolarVault's total AC output to the house bus — not the net export to the public grid (use the SmartMeter `tnPhasePw` / `ct_3phase_export_total` for that).
+
+#### SOC slider bounds: dynamic min/max
+
+The SOC Charge Limit and SOC Discharge Limit sliders now enforce that `discharge_limit < charge_limit`, preventing invalid configurations that the device rejects silently.
 
 ---
 

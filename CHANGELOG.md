@@ -5,6 +5,122 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] – unreleased
+
+### Fixed
+
+- **SOC Charge Limit slider range** corrected to 50–100 % (device enforces minimum 50 %;
+  previously the slider allowed 0–100 %, but values below 50 % were silently ignored).
+  Confirmed identical on SolarVault 3 and SolarVault 3 Pro Max.
+
+- **SOC Discharge Limit slider range** corrected to 5–49 % (device enforces maximum 49 %;
+  previously the slider allowed 0–100 %, but values above 49 % were silently ignored).
+
+- **Smart plug switch creation filter** tightened: switches are now only created for
+  devType=6 (smart plugs). The previous check (`devType != 2`) would incorrectly have
+  created switches for CT devices or collectors if they appeared in the subdevice list.
+
+### Added
+
+- **Dynamic SOC limit bounds**: When the device reports `minSocChg`/`maxSocChg`/`minSocDischg`/
+  `maxSocDischg` fields, the slider min/max values update automatically to reflect device-reported
+  limits (adopted from upstream).
+
+- **Percentage unit on SOC sliders**: `SOC Charge Limit`, `SOC Discharge Limit` and
+  `SOC Force Charge` now display the `%` unit in the HA slider UI (closes Issue #16).
+
+### Fixed
+
+- **`maxFeedGrid` slider range** corrected to 0–2500 W (was 0–800 W). The field maps to
+  the app's "Einspeiseleistungsgrenze" and limits export to the **public electricity grid**
+  (not delivery to the house AC bus). Live MQTT capture confirmed the device accepts values
+  up to 2500 W. Effect is only visible when the device is actually exporting to the public
+  grid; in Eigenverbrauch mode with near-zero net export the limit appears inactive.
+
+### Refactored
+
+- Plug helper functions (`plug_comm_mode`, `plug_mqtt_control_allowed`, `should_create_plug_switch`,
+  `COMM_MODE_LABELS`, `COMM_MODE_LOCAL`, `COMM_MODE_CLOUD`) moved from `switch.py` to `sensor.py`
+  as shared public exports. `switch.py` now imports from `sensor.py` instead of maintaining
+  private duplicates.
+
+### Upstream-Sync (v2.0.0)
+
+Nachgezogene Änderungen aus `Jackery-Official/jackery` v2.0.0. Die Fork-eigenen Korrekturen
+bleiben dabei erhalten: Branch A/B in `_calculate_energy_flow` werden **nicht** wieder
+eingeführt, der `p_home = max(0.0, p_home)`-Clamp bleibt, HTO910A-Collector-,
+Expansion-Battery- und SmartMeter-als-CT-Support bleiben unverändert, `REQUEST_INTERVAL`
+bleibt bei 10 s.
+
+- **`FUNC_ENABLE_BITS` + `func_enable` Sensor**: Die Bit→Name-Tabelle für `funcEnable`
+  existierte upstream, aber ohne zugehörigen Sensor — sie war toter Code und wurde nie
+  ausgewertet. Der Fork ergänzt den `func_enable` Sensor (`funcEnable`, type-106) und
+  dekodiert die 12 Bits in das Attribut `func_enable_flags` (plus `func_enable_raw`).
+  Übersetzungen in `strings.json`, `en.json`, `de.json`, `fr.json` ergänzt.
+
+- **`CT_SUBTYPE_MAP`**: subType → Hardware-Klartextname (Shelly/Eastron/Jackery Smart Meter).
+  Wird als Attribut `sub_type_label` an CT- und Collector-Sensoren ausgegeben.
+
+- **`_normalize_payload_fields()` generalisiert**: Alias-Normalisierung (`gridBuyPw`→`gridInPw`,
+  `gridSellPw`→`gridOutPw`, `workModel`→`workMode`) ist jetzt eine Standalone-Funktion und wird
+  bei **jedem** Merge in den Cache angewendet (type-2/25, type-23 System, type-106, type-107)
+  statt nur im type-106-Handler. Vorhandene Werte gewinnen immer über ihren Alias.
+
+- **Helper-Funktionen** `_field_present()`, `_safe_float()`, `_pick_best_power_net()`:
+  typsichere Feldauswertung; `0` gilt als gültiger Messwert, `None` als „nicht gemeldet".
+
+- **`_effective_ongrid_net()`**: Die Netzanschluss-Leistung wird jetzt aus mehreren Quellen
+  bestimmt (`gridInPw/gridOutPw`, `inOngridPw/outOngridPw`, `inGridSidePw/outGridSidePw`).
+  Ein vorhandenes, aber auf 0 stehendes type-106-Feld kann damit keinen echten type-2-Messwert
+  mehr verdecken.
+
+- **`_grid_net_from_system()`**: Ersetzt den einfachen `gridBuyPw`/`gridSellPw`-Fallback, wenn
+  weder CT noch Collector Daten liefern. Fork-Abweichung: Aufruf mit `include_ongrid=False`,
+  da `inOngridPw/outOngridPw` bereits `p_ong` bilden — würden sie zusätzlich als „Zähler"
+  gelten, kollabierte `p_home = p_grid - p_ong` auf 0 und der AC-Ausgangs-Fallback
+  (`p_home = outOngridPw`) für Installationen ohne Zähler ginge verloren.
+
+- **`_extract_flat_body()` + `_FLAT_PAYLOAD_KEYS`**: Statusnachrichten ohne `body`-Wrapper
+  (Felder direkt auf Top-Level) werden jetzt erkannt und in den Cache gemergt statt verworfen.
+
+- **Batterieleistung aus Gerätewerten**: Sind `batInPw`/`batOutPw` im Cache (type-2 und
+  type-106), werden sie direkt für `calc_battery_charge_power`/`calc_battery_discharge_power`
+  verwendet. Die Näherung `pv + p_ac + p_ong` (ignoriert Wandlungsverluste und Eigenverbrauch)
+  bleibt nur noch Fallback für Firmware ohne diese Felder.
+
+- **Type-102-Handler**: Sub-Device Point-Updates. Arrays werden über die (aus dem
+  type-101-Handler extrahierte) Methode `_merge_subdevice_arrays()` gemergt, Einzelgerät-Updates
+  über `_merge_subdevice_point_update()` — bekannte SNs werden in-place gepatcht (Null-Werte
+  werden ignoriert), unbekannte über `devType` klassifiziert bzw. aus den Feldern abgeleitet.
+
+- **Type-107-Handler**: Inkrementelle `soc`/`workMode`-Updates werden normalisiert
+  in den Cache gemergt.
+
+- **`REAUTH_HINT_TIMEOUT = 120` + `_ever_received`**: Das Gerät antwortet bei falschem Token
+  gar nicht (statt mit einem Fehler). Kommt innerhalb von 120 s nach dem Setup keine einzige
+  Nachricht an, wird der Re-Auth-Flow ausgelöst. Der explizite type-123/401-Trigger bleibt.
+
+- **`_remove_subdevice_from_ha()`**: Entfernt ein abgemeldetes Sub-Device über die
+  Device-Registry statt über einzelne `entity.async_remove(force_remove=True)`-Aufrufe.
+  Damit verschwindet auch die (vorher zurückbleibende) leere Gerätekarte. Neuer Helper
+  `_entity_keys_for_subdevice()` liefert die zugehörigen Entity-Keys.
+
+- **Zusätzlicher type-2-Poll**: `_send_poll_requests()` sendet zusätzlich zu type-25 einen
+  type-2-Request („read all settings"). Intervall bleibt 10 s, type-105 weiterhin alle
+  3 Zyklen (~30 s).
+
+- **`OFFLINE_TIMEOUT = 60`** als Konstante eingeführt (ersetzt hartkodierte 60-Sekunden-Werte
+  in Offline-Erkennung, Lösch-Timer und Poll-Loop).
+
+- **Doku**: `docs/entity-reference.md` um den Abschnitt „Migration von der Original-Integration"
+  mit den abweichenden Entity-IDs ergänzt.
+
+- **Tests**: `tests/test_upstream_sync.py` mit 50 neuen Tests für Helper, type-102/107,
+  Flat-Body-Extraktion, Alias-Normalisierung, Batterieformel und funcEnable-Dekodierung.
+  Gesamtabdeckung steigt von 49 % auf 57 %.
+
+---
+
 ## [2.2.0] – 2026-07-27
 
 ### Added
