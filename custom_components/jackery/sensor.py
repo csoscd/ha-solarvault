@@ -2005,7 +2005,6 @@ class JackeryDataCoordinator:
             # 3. ACSocket (EPS)
             ac_in = _safe_float(data.get("swEpsInPw"))
             ac_out = _safe_float(data.get("swEpsOutPw"))
-            p_ac = ac_in - ac_out # 流入主机为正
 
             # 4. Grid (Meter)
             # 优先从 'cts' 数组中提取 CT 数据 (Smart CT Meter)
