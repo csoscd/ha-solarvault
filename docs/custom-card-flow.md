@@ -1,6 +1,6 @@
 # Energy Flow Visualization with ha-freeflow
 
-This document describes how to configure a [ha-freeflow](https://github.com/cschulz1711/ha-freeflow) card
+This document describes how to configure a [ha-freeflow](https://github.com/csoscd/ha-freeflow) card
 to visualize the energy topology of a hybrid solar storage system (e.g. a device with PV inputs, AC output,
 battery storage, EPS output, and grid interaction).
 

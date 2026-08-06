@@ -182,7 +182,7 @@ Restarting the SolarVault (via the Jackery app or directly on the device) causes
 ### Links
 
 - **Original integration**: https://github.com/Jackery-Official/jackery
-- **ha-freeflow** (custom flow card): https://github.com/cschulz1711/ha-freeflow
+- **ha-freeflow** (custom flow card): https://github.com/csoscd/ha-freeflow
 - **Energy Flow Card Plus**: https://github.com/flixlix/energy-flow-card-plus
 - **Power Flow Card Plus**: https://github.com/flixlix/power-flow-card-plus
 - **Home Assistant MQTT integration**: https://www.home-assistant.io/integrations/mqtt/
