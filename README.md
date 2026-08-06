@@ -139,84 +139,15 @@ Before the integration can receive data, **two things must be in place**:
 
 ---
 
-### Example: Energy Flow Card Plus
+### Dashboard Cards
 
-```yaml
-type: custom:energy-flow-card-plus
-entities:
-  solar:
-    entity: sensor.jackery_solar_power
-    name: Solar
-    icon: mdi:solar-power
-  grid:
-    entity:
-      consumption: sensor.jackery_grid_import_power
-      production: sensor.jackery_grid_export_power
-    name: Grid
-    icon: mdi:transmission-tower
-  battery:
-    entity:
-      consumption: sensor.jackery_total_battery_charge_power
-      production: sensor.jackery_total_battery_discharge_power
-    state_of_charge: sensor.jackery_bms_soc
-    name: Battery
-    icon: mdi:battery
-  home:
-    entity: sensor.jackery_home_power
-    name: Home
-    icon: mdi:home-lightning-bolt
-display_zero_lines:
-  mode: show
-  transparency: 50
-  grey_color: [189, 189, 189]
-w_decimals: 0
-kw_decimals: 2
-color_icons: true
-animation_speed: 10
-energy_date_selection: false
-```
+![ha-freeflow card](img/ha-freeflow-solarvault.jpg)
 
-![demo](img/demo.png)
-
-> **Note on battery sensors:**
-> `sensor.jackery_battery_charge_power` (renamed: "Main Unit Charge Power") reports the charge power of the SolarVault main unit **only** — expansion batteries like the BP2500 are not included.
-> `sensor.jackery_total_battery_charge_power` derives the full-stack battery power via energy balance (PV + grid import − AC output − EPS output) and covers all connected battery units. Use this one for dashboards in multi-unit setups.
-> `sensor.jackery_bms_soc` reports the combined BMS state of charge across the entire battery stack and should be preferred over `sensor.jackery_battery_soc` for multi-unit setups.
-
-#### Alternative: power-flow-card-plus with a signed net sensor
-
-If `energy-flow-card-plus` shows Wh instead of W in your setup, use [`power-flow-card-plus`](https://github.com/flixlix/power-flow-card-plus) instead.
-It requires a single signed battery power sensor (positive = discharging, negative = charging).
-Create a **Template sensor helper** in Home Assistant with this formula:
-
-```
-{{ states('sensor.jackery_total_battery_discharge_power') | float(0) - states('sensor.jackery_total_battery_charge_power') | float(0) }}
-```
-
-Then use it in your card config:
-
-```yaml
-type: custom:power-flow-card-plus
-entities:
-  solar:
-    entity: sensor.jackery_solar_power
-    name: Solar
-    icon: mdi:solar-power
-  grid:
-    entity: sensor.jackery_grid_import_power
-    entity_production: sensor.jackery_grid_export_power
-    name: Grid
-    icon: mdi:transmission-tower
-  battery:
-    entity: sensor.jackery_battery_net_power_signed   # your template sensor
-    state_of_charge: sensor.jackery_bms_soc
-    name: Battery
-    icon: mdi:battery
-  home:
-    entity: sensor.jackery_home_power
-    name: Home
-    icon: mdi:home-lightning-bolt
-```
+| Card | Description | Docs |
+|---|---|---|
+| **ha-freeflow** | Fully customizable flow topology — nodes, positions, colors and flows are all configurable. Shown in the screenshot above. | [docs/custom-card-flow.md](docs/custom-card-flow.md) |
+| **Energy Flow Card Plus** | Popular circular flow diagram for solar/grid/battery/home. | [docs/card-energy-flow-plus.md](docs/card-energy-flow-plus.md) |
+| **Power Flow Card Plus** | Alternative to Energy Flow Card Plus; use when it shows Wh instead of W. | [docs/card-power-flow-plus.md](docs/card-power-flow-plus.md) |
 
 ---
 
@@ -251,7 +182,9 @@ Restarting the SolarVault (via the Jackery app or directly on the device) causes
 ### Links
 
 - **Original integration**: https://github.com/Jackery-Official/jackery
+- **ha-freeflow** (custom flow card): https://github.com/cschulz1711/ha-freeflow
 - **Energy Flow Card Plus**: https://github.com/flixlix/energy-flow-card-plus
+- **Power Flow Card Plus**: https://github.com/flixlix/power-flow-card-plus
 - **Home Assistant MQTT integration**: https://www.home-assistant.io/integrations/mqtt/
 
 ---
