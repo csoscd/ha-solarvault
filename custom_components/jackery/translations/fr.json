@@ -45,17 +45,12 @@
                     "tariff": "Mode tarifaire",
                     "ai": "Mode IA"
                 }
-            },
-            "max_feed_in_power": {
-                "name": "Puissance maximale d’injection réseau",
-                "state": {
-                    "w800": "800 W",
-                    "w1200": "1200 W (SV3 Pro)",
-                    "w2500": "2500 W (SV3 Pro Max)"
-                }
             }
         },
         "number": {
+            "max_feed_in_power": {
+                "name": "Puissance maximale d'injection réseau"
+            },
             "soc_charge_limit": {
                 "name": "Limite haute du SOC"
             },
@@ -423,8 +418,12 @@
             "expansion_battery_discharge_energy": {
                 "name": "Énergie de décharge"
             },
-            "collector_import_power": {"name": "Puissance importée du réseau"},
-            "collector_export_power": {"name": "Puissance injectée sur le réseau"},
+            "collector_import_power": {
+                "name": "Puissance importée du réseau"
+            },
+            "collector_export_power": {
+                "name": "Puissance injectée sur le réseau"
+            },
             "collector_comm_state": {
                 "name": "État de la communication",
                 "state": {
@@ -439,7 +438,9 @@
                     "cloud": "Cloud (relais)"
                 }
             },
-            "collector_ip_address": {"name": "Adresse IP"}
+            "collector_ip_address": {
+                "name": "Adresse IP"
+            }
         }
     }
 }

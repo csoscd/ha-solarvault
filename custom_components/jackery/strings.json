@@ -45,17 +45,10 @@
                     "tariff": "Tariff Mode",
                     "ai": "AI Mode"
                 }
-            },
-            "max_feed_in_power": {
-                "name": "Max Feed-in Power (OnGrid)",
-                "state": {
-                    "w800": "800 W",
-                    "w1200": "1200 W (SV3 Pro)",
-                    "w2500": "2500 W (SV3 Pro Max)"
-                }
             }
         },
         "number": {
+            "max_feed_in_power": {"name": "Max Feed-in Power (OnGrid)"},
             "soc_charge_limit": {"name": "SOC Charge Limit"},
             "soc_discharge_limit": {"name": "SOC Discharge Limit"},
             "soc_force_charge": {"name": "SOC Force Charge Target"},
