@@ -50,11 +50,18 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
             continue
 
         if uid.startswith(new_prefix):
-            # Remove wrongly-migrated jackery_{sn}_main_* entities from v2.0.1 bug 2
             suffix_after_sn = uid[len(new_prefix):]
+            # Remove wrongly-migrated jackery_{sn}_main_* entities from v2.0.1 bug 2
             if suffix_after_sn.startswith("main_"):
                 _LOGGER.info(
                     "Removing v2.0.1 wrongly-migrated entity: %s (%s)",
+                    uid, entity_entry.entity_id,
+                )
+                ent_reg.async_remove(entity_entry.entity_id)
+            # Remove obsolete select entity replaced by number slider in v2.3.2
+            elif suffix_after_sn == "max_feed_in_select":
+                _LOGGER.info(
+                    "Removing obsolete select entity (replaced by number slider): %s (%s)",
                     uid, entity_entry.entity_id,
                 )
                 ent_reg.async_remove(entity_entry.entity_id)
