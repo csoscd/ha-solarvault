@@ -65,9 +65,9 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 |---|---|---|---|---|
 | Number | SOC Charge Limit | `socChgLimit` | 50–100 % | Maximum SOC the battery charges to |
 | Number | SOC Discharge Limit | `socDischgLimit` | 5–49 % | Minimum SOC the battery discharges to |
-| Select | Max Feed-in Power (OnGrid) | `maxOutPw` | 800 W / 1200 W / 2500 W | Maximum OnGrid feed-in power (Einspeiseleistung). SV3 Pro: 800/1200 W. SV3 Pro Max: 800/2500 W. Only app-supported values are offered to prevent invalid configurations. |
+| Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–2500 W (10 W steps) | Maximum OnGrid feed-in power (Einspeiseleistung). The Jackery app only offers 800/1200/2500 W presets, but live testing confirmed the device accepts and enforces arbitrary 10 W step values. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
-| Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–800 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (which controls `maxOutPw`, the app-selectable limit of 800/1200/2500 W). Confirmed writable via cmd=5 (Issue #11). |
+| Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–2500 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (`maxOutPw`). Confirmed writable via cmd=5 (Issue #11). |
 | Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
 | Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
 | Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
@@ -290,6 +290,14 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.3.2
+
+#### Max Feed-in Power: Select → Number slider
+
+The "Max Feed-in Power (OnGrid)" entity (`maxOutPw`) was previously a Select with fixed options (800/1200/2500 W). Live MQTT testing confirmed the device accepts and enforces arbitrary values in 10 W steps — setting 840 W caused the SolarVault to hard-cap its AC output at exactly 840 W under a 2 kW load. The entity is now a **Number slider (0–2500 W, 10 W steps)**, giving full control over the OnGrid output limit.
+
+---
+
 ### What's new in v2.3.0
 
 #### Total Battery Power via energy balance
@@ -346,7 +354,7 @@ when the SmartMeter 3P / HTO907A is not present).
 `maxFeedGrid` is now a writable Number entity (0–800 W, step 10 W). Previously it was read-only.
 The device-reported value from type-106 is still visible as a separate read-back sensor.
 
-> **Note:** `maxFeedGrid` is distinct from `maxOutPw` (the "Max Feed-In Power" select entity with 800/1200/2500 W options). The exact relationship between the two fields is not fully documented by Jackery, but live captures confirm they can hold different values simultaneously.
+> **Note:** `maxFeedGrid` is distinct from `maxOutPw` (the "Max Feed-In Power" number entity, 0–2500 W). The exact relationship between the two fields is not fully documented by Jackery, but live captures confirm they can hold different values simultaneously.
 
 ---
 

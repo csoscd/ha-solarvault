@@ -24,16 +24,6 @@ _AUTO_STANDBY_OPTIONS: dict[str, int] = {
 }
 _AUTO_STANDBY_VALUE_TO_OPTION: dict[int, str] = {v: k for k, v in _AUTO_STANDBY_OPTIONS.items()}
 
-# maxOutPw: valid values as offered by the Jackery app
-# SV3 Pro: 800 W / 1200 W; SV3 Pro Max: 800 W / 2500 W
-# Keys are translation keys; values are the watt values sent to the device.
-_MAX_FEED_IN_OPTIONS: dict[str, int] = {
-    "w800": 800,
-    "w1200": 1200,
-    "w2500": 2500,
-}
-_MAX_FEED_IN_VALUE_TO_OPTION: dict[int, str] = {v: k for k, v in _MAX_FEED_IN_OPTIONS.items()}
-
 # workModel: operating mode (keys are translation keys, values are device integers)
 _WORK_MODE_OPTIONS: dict[int, str] = {
     2: "self_consumption",
@@ -58,7 +48,6 @@ async def async_setup_entry(
     async_add_entities([
         JackeryAutoStandbySelect(coordinator=coordinator, config_entry_id=config_entry.entry_id),
         JackeryWorkModeSelect(coordinator=coordinator, config_entry_id=config_entry.entry_id),
-        JackeryMaxFeedInSelect(coordinator=coordinator, config_entry_id=config_entry.entry_id),
     ])
 
 
@@ -178,58 +167,3 @@ class JackeryWorkModeSelect(SelectEntity):
         await self._coordinator.async_control_main_device({"workModel": value})
 
 
-class JackeryMaxFeedInSelect(SelectEntity):
-    """Max feed-in power selector (maxOutPw field, cmd=5).
-
-    The Jackery app only allows 800 W or 2500 W. Values outside this range
-    are not supported by the device and may violate local grid regulations.
-    """
-
-    def __init__(self, coordinator: JackeryDataCoordinator, config_entry_id: str) -> None:
-        self._coordinator = coordinator
-        device_sn = coordinator._device_sn or config_entry_id
-        self._attr_translation_key = "max_feed_in_power"
-        self._attr_icon = "mdi:transmission-tower-export"
-        self._attr_options = list(_MAX_FEED_IN_OPTIONS.keys())
-        self._attr_has_entity_name = True
-        self._attr_unique_id = f"jackery_{device_sn}_max_feed_in_select"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_sn)},
-            "name": "Jackery",
-            "manufacturer": "Jackery",
-            "model": "Energy Monitor",
-        }
-
-    @property
-    def should_poll(self) -> bool:
-        return False
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        self._coordinator.register_sensor("main_select_maxOutPw", self)
-
-    async def async_will_remove_from_hass(self) -> None:
-        self._coordinator.unregister_sensor("main_select_maxOutPw")
-        await super().async_will_remove_from_hass()
-
-    def _update_from_coordinator(self, data: dict) -> None:
-        val = data.get("maxOutPw")
-        if val is None:
-            return
-        try:
-            option = _MAX_FEED_IN_VALUE_TO_OPTION.get(int(val))
-            if option is not None:
-                self._attr_current_option = option
-                self._attr_available = True
-                self.async_write_ha_state()
-        except (TypeError, ValueError):
-            pass
-
-    async def async_select_option(self, option: str) -> None:
-        value = _MAX_FEED_IN_OPTIONS.get(option)
-        if value is None:
-            return
-        self._attr_current_option = option
-        self.async_write_ha_state()
-        self._coordinator._data_cache["maxOutPw"] = value
-        await self._coordinator.async_control_main_device({"maxOutPw": value})

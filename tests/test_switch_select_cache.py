@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from custom_components.jackery.select import JackeryMaxFeedInSelect, JackeryWorkModeSelect
+from custom_components.jackery.number import NUMBERS, JackeryMainNumber
+from custom_components.jackery.select import JackeryWorkModeSelect
 from custom_components.jackery.switch import JackeryFollowMeterSwitch, JackeryOptimisticSwitch
 
 # ---------------------------------------------------------------------------
@@ -56,12 +57,22 @@ def _make_workmode_select() -> JackeryWorkModeSelect:
     return sel
 
 
-def _make_max_feed_in_select() -> JackeryMaxFeedInSelect:
-    sel = JackeryMaxFeedInSelect.__new__(JackeryMaxFeedInSelect)
-    sel._coordinator = _FakeCoordinator()
-    sel._attr_current_option = None
-    sel.async_write_ha_state = MagicMock()
-    return sel
+def _make_max_feed_in_number() -> JackeryMainNumber:
+    cfg = NUMBERS["maxOutPw"]
+    coord = _FakeCoordinator()
+    n = JackeryMainNumber(
+        key="maxOutPw",
+        min_value=float(cfg["min"]),
+        max_value=float(cfg["max"]),
+        step=float(cfg["step"]),
+        coordinator=coord,  # type: ignore[arg-type]
+        config_entry_id="test_entry",
+        translation_key=str(cfg["translation_key"]),
+        unit=str(cfg["unit"]),
+        optimistic=True,
+    )
+    n.async_write_ha_state = MagicMock()
+    return n
 
 
 # ---------------------------------------------------------------------------
@@ -115,25 +126,35 @@ async def test_work_mode_select_custom_mode():
 
 
 # ---------------------------------------------------------------------------
-# JackeryMaxFeedInSelect — maxOutPw must be patched
+# maxOutPw Number — optimistic cache-patch and correct command
 # ---------------------------------------------------------------------------
 
-async def test_max_feed_in_select_patches_cache():
-    """async_select_option must patch maxOutPw in coordinator cache."""
-    sel = _make_max_feed_in_select()
-    await sel.async_select_option("w800")
+async def test_max_feed_in_number_patches_cache():
+    """async_set_native_value must patch maxOutPw in coordinator cache before MQTT send."""
+    n = _make_max_feed_in_number()
+    await n.async_set_native_value(840.0)
 
-    assert sel._attr_current_option == "w800"
-    assert sel._coordinator._data_cache.get("maxOutPw") == 800
-    assert sel._coordinator.last_cmd == {"maxOutPw": 800}
+    assert n._attr_native_value == 840.0
+    assert n._coordinator._data_cache.get("maxOutPw") == 840
+    assert n._coordinator.last_cmd == {"maxOutPw": 840}
+    n.async_write_ha_state.assert_called()
 
 
-async def test_max_feed_in_select_w2500():
-    """2500 W option must be correctly mapped and patched."""
-    sel = _make_max_feed_in_select()
-    await sel.async_select_option("w2500")
+async def test_max_feed_in_number_arbitrary_value():
+    """Arbitrary 10 W step values must be accepted (confirmed by live MQTT test 2026-08-06)."""
+    n = _make_max_feed_in_number()
+    await n.async_set_native_value(1350.0)
 
-    assert sel._coordinator._data_cache["maxOutPw"] == 2500
+    assert n._coordinator._data_cache["maxOutPw"] == 1350
+    assert n._coordinator.last_cmd == {"maxOutPw": 1350}
+
+
+def test_max_feed_in_number_bounds():
+    """Slider bounds must be 0–2500 W with 10 W steps."""
+    n = _make_max_feed_in_number()
+    assert n._attr_native_min_value == 0.0
+    assert n._attr_native_max_value == 2500.0
+    assert n._attr_native_step == 10.0
 
 
 # ---------------------------------------------------------------------------

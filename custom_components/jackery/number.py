@@ -47,6 +47,14 @@ NUMBERS = {
         "min": 0, "max": 200, "step": 10,
         "unit": UnitOfPower.WATT, "optimistic": True,
     },
+    # maxOutPw: maximum OnGrid AC output power (Einspeiseleistung).
+    # Live MQTT test (2026-08-06) confirmed the device accepts and enforces arbitrary
+    # values in 10 W steps — not limited to the app's preset options (800/1200/2500 W).
+    "maxOutPw": {
+        "translation_key": "max_feed_in_power",
+        "min": 0, "max": 2500, "step": 10,
+        "unit": UnitOfPower.WATT, "optimistic": True,
+    },
     # maxFeedGrid: public grid export cap — limits how much power the SolarVault
     # may export to the PUBLIC electricity grid (not the house AC bus).
     # App "Einspeiseleistungsgrenze", 0–2500 W in 10 W steps.
