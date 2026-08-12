@@ -6,7 +6,7 @@
 
 > **⚠️ This is a fork of the original [Jackery-Official/jackery](https://github.com/Jackery-Official/jackery) integration.**
 > 
-> This fork adds fixes and additional sensors specifically tested with the **Jackery SolarVault 3 Pro Max** and the **Jackery SmartMeter 3P (HTO907A)**. All credits for the original implementation go to the original authors.
+> This fork adds fixes and additional sensors specifically tested with the **Jackery SolarVault 3 Pro Max**, the **Jackery SmartMeter 3P (HTO907A)** and the **Shelly Pro 3EM** (as Jackery CT sub-device). All credits for the original implementation go to the original authors.
 >
 > Changes in this fork are tracked in the [commit history](https://github.com/csoscd/ha-solarvault/commits/main). Bug reports and improvements relating to this fork can be filed [here](https://github.com/csoscd/ha-solarvault/issues); for general Jackery integration issues please use the [original repository](https://github.com/Jackery-Official/jackery/issues).
 
@@ -77,11 +77,18 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | Switch | Follow Meter Power (Zähler folgen) | `isFollowMeterPw` | on / off | Sub-mode within Benutzerdefiniert (workModel=4): device tracks the SmartMeter to achieve net-zero grid exchange. **Only available when Work Mode = Benutzerdefiniert.** |
 | Button | Reboot | – | – | Sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
 
-#### SmartMeter 3P fix (HTO907A, devType=3, subType=5)
+#### SmartMeter 3P / devType=3 CT devices (HTO907A, Shelly Pro 3EM, and others)
 
-The original integration incorrectly classified the Jackery SmartMeter 3P as a smart plug instead of a CT meter (see [issue #18](https://github.com/Jackery-Official/jackery/issues/18)). This caused the energy flow calculation to receive no CT data at all.
+The original integration incorrectly classified devType=3 CT devices as smart plugs instead of CT meters (see [issue #18](https://github.com/Jackery-Official/jackery/issues/18)). This caused the energy flow calculation to receive no CT data at all.
 
-This fork fixes the classification and exposes **19 dedicated sensors** per SmartMeter:
+This fork fixes the classification for **all devType=3 devices**, regardless of manufacturer or subType:
+
+| Device | subType | Tested |
+|---|---|---|
+| Jackery SmartMeter 3P (HTO907A) | 5 | ✅ |
+| Shelly Pro 3EM | 2 | ✅ |
+
+Both devices send identical MQTT field names and expose the same **19 sensors**:
 
 | Sensor | MQTT field | Description |
 |---|---|---|
