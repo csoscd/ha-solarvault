@@ -783,7 +783,7 @@ SUBDEVICE_SENSORS = {
             "scale": 0.01,
         },
     },
-    # SmartMeter 3P (devType=3, subType=5, model HTO907A)
+    # SmartMeter 3P / devType=3 (any subType): HTO907A (subType=5), Shelly Pro 3EM (subType=2)
     # xPhasePw  = Consumption / Grid Import per phase
     # xnPhasePw = Production  / Grid Export per phase
     "ct_3phase": {
@@ -1805,7 +1805,7 @@ class JackeryDataCoordinator:
                         sensor_group = "collector"
                         data_key = "collectors"
                     elif is_ct:
-                        sensor_group = "ct_3phase" if (dev_type == 3 and sub_type == 5) else "ct"
+                        sensor_group = "ct_3phase" if dev_type == 3 else "ct"
                         data_key = "cts"
                     else:
                         sensor_group = "plug"
