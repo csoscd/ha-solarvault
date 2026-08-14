@@ -27,6 +27,20 @@
             "reauth_successful": "Re-authentication was successful"
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Jackery Options",
+                "description": "Reconfigure connection and optional SmartMeter HTTP polling.",
+                "data": {
+                    "token": "Token",
+                    "topic_prefix": "MQTT Topic Prefix",
+                    "smartmeter_http_poll": "Poll SmartMeter via HTTP (voltage, current, reactive power, …)",
+                    "smartmeter_poll_interval": "SmartMeter poll interval (seconds)"
+                }
+            }
+        }
+    },
     "entity": {
         "select": {
             "auto_standby": {
@@ -437,7 +451,23 @@
             },
             "collector_ip_address": {
                 "name": "IP Address"
-            }
+            },
+            "http_sm_voltage_l1":        {"name": "L1 Voltage"},
+            "http_sm_voltage_l2":        {"name": "L2 Voltage"},
+            "http_sm_voltage_l3":        {"name": "L3 Voltage"},
+            "http_sm_current_l1":        {"name": "L1 Current"},
+            "http_sm_current_l2":        {"name": "L2 Current"},
+            "http_sm_current_l3":        {"name": "L3 Current"},
+            "http_sm_reactive_power_l1": {"name": "L1 Reactive Power"},
+            "http_sm_reactive_power_l2": {"name": "L2 Reactive Power"},
+            "http_sm_reactive_power_l3": {"name": "L3 Reactive Power"},
+            "http_sm_apparent_power_l1": {"name": "L1 Apparent Power"},
+            "http_sm_apparent_power_l2": {"name": "L2 Apparent Power"},
+            "http_sm_apparent_power_l3": {"name": "L3 Apparent Power"},
+            "http_sm_power_factor_l1":   {"name": "L1 Power Factor"},
+            "http_sm_power_factor_l2":   {"name": "L2 Power Factor"},
+            "http_sm_power_factor_l3":   {"name": "L3 Power Factor"},
+            "http_sm_frequency":         {"name": "Grid Frequency"}
         }
     }
 }

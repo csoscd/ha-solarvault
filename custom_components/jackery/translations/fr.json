@@ -27,6 +27,20 @@
             "reauth_successful": "La ré-authentification a réussi"
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Options Jackery",
+                "description": "Reconfigurer la connexion et le sondage HTTP optionnel du SmartMeter.",
+                "data": {
+                    "token": "Token",
+                    "topic_prefix": "Préfixe de topic MQTT",
+                    "smartmeter_http_poll": "Interroger le SmartMeter via HTTP (tension, courant, puissance réactive, …)",
+                    "smartmeter_poll_interval": "Intervalle d'interrogation du SmartMeter (secondes)"
+                }
+            }
+        }
+    },
     "entity": {
         "select": {
             "auto_standby": {
@@ -437,7 +451,23 @@
             },
             "collector_ip_address": {
                 "name": "Adresse IP"
-            }
+            },
+            "http_sm_voltage_l1":        {"name": "Tension L1"},
+            "http_sm_voltage_l2":        {"name": "Tension L2"},
+            "http_sm_voltage_l3":        {"name": "Tension L3"},
+            "http_sm_current_l1":        {"name": "Courant L1"},
+            "http_sm_current_l2":        {"name": "Courant L2"},
+            "http_sm_current_l3":        {"name": "Courant L3"},
+            "http_sm_reactive_power_l1": {"name": "Puissance réactive L1"},
+            "http_sm_reactive_power_l2": {"name": "Puissance réactive L2"},
+            "http_sm_reactive_power_l3": {"name": "Puissance réactive L3"},
+            "http_sm_apparent_power_l1": {"name": "Puissance apparente L1"},
+            "http_sm_apparent_power_l2": {"name": "Puissance apparente L2"},
+            "http_sm_apparent_power_l3": {"name": "Puissance apparente L3"},
+            "http_sm_power_factor_l1":   {"name": "Facteur de puissance L1"},
+            "http_sm_power_factor_l2":   {"name": "Facteur de puissance L2"},
+            "http_sm_power_factor_l3":   {"name": "Facteur de puissance L3"},
+            "http_sm_frequency":         {"name": "Fréquence du réseau"}
         }
     }
 }
