@@ -48,7 +48,7 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | AC to Grid Energy | `acOtOngridEgy` | Cumulative AC-to-grid energy |
 | CT Import Energy | `inCtEgy` | Cumulative system-level CT import energy (added in firmware post-2026-07) |
 | CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
-| SOC Force Charge Target | `socForceChg` | See control entities below |
+| Forced Charging (Switch) | `socForceChg` | See control entities below |
 | WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
 | WLAN IP | `wip` | IP address of the SolarVault on the WiFi network |
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
@@ -68,7 +68,7 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–2500 W (10 W steps) | Maximum OnGrid feed-in power (Einspeiseleistung). The Jackery app only offers 800/1200/2500 W presets, but live testing confirmed the device accepts and enforces arbitrary 10 W step values. |
 | Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
 | Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–2500 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (`maxOutPw`). Confirmed writable via cmd=5 (Issue #11). |
-| Number | SOC Force Charge Target | `socForceChg` | 0–100 % | **⚠️ Purpose not fully determined.** Confirmed writable via MQTT (cmd=5, device acks with cmd=107). Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold. Storm Warning in the Jackery app uses the cloud and does **not** set this field. Set to 0 to deactivate. |
+| Switch | Forced Charging | `socForceChg` | on / off | Matches the "Erzwungenes Laden" toggle in the Jackery app. When **off**: grid charging only triggers as an emergency below 2% SOC. When **on**: grid charging triggers as soon as SOC falls below the configured SOC Discharge Limit. |
 | Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
 | Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
 | Switch | Auto Standby Allowed | `isAutoStandby` | on / off | Whether auto-standby is permitted |
@@ -227,6 +227,18 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.3.5
+
+#### socForceChg: Number → Switch (breaking change)
+
+`socForceChg` was exposed as a **Number slider (0–100%)** named "SOC Force Charge Target". Live MQTT testing confirmed it is binary (0=off, 1=on) — it controls whether grid charging triggers at the configured discharge limit (`socDischgLimit`) or only at the 2% emergency threshold.
+
+The entity is now a **Switch** named **"Forced Charging"** (`switch.*_force_charge`), matching the "Erzwungenes Laden" toggle in the Jackery app.
+
+**Breaking change:** The old `number.*_soc_zwangsladziel` and `sensor.*_soc_force_charge` entities are removed. Update dashboard cards and automations to use `switch.*_force_charge`. An HA restart is required after updating.
 
 ---
 
