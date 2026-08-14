@@ -57,9 +57,6 @@
             "soc_discharge_limit": {
                 "name": "SOC-Entladelimit"
             },
-            "soc_force_charge": {
-                "name": "SOC-Zwangsladziel"
-            },
             "default_output_power": {
                 "name": "Standard-Ausgangsleistung"
             },
@@ -79,6 +76,9 @@
             },
             "follow_meter_power": {
                 "name": "Zähler folgen"
+            },
+            "force_charge": {
+                "name": "Erzwungenes Laden"
             }
         },
         "button": {
@@ -182,9 +182,6 @@
             },
             "soc_discharge_limit": {
                 "name": "SOC-Entladelimit"
-            },
-            "soc_force_charge": {
-                "name": "SOC-Zwangsladziel"
             },
             "home_power": {
                 "name": "Hausverbrauchsleistung"

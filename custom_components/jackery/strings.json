@@ -51,7 +51,6 @@
             "max_feed_in_power": {"name": "Max Feed-in Power (OnGrid)"},
             "soc_charge_limit": {"name": "SOC Charge Limit"},
             "soc_discharge_limit": {"name": "SOC Discharge Limit"},
-            "soc_force_charge": {"name": "SOC Force Charge Target"},
             "default_output_power": {"name": "Default Output Power"},
             "max_feed_grid_power": {"name": "Max Grid Feed-In Limit"}
         },
@@ -59,7 +58,8 @@
             "auto_standby_allowed": {"name": "Auto Standby Allowed"},
             "eps_switch": {"name": "EPS Switch"},
             "off_grid_fallback": {"name": "Off-Grid Fallback"},
-            "follow_meter_power": {"name": "Follow Meter Power"}
+            "follow_meter_power": {"name": "Follow Meter Power"},
+            "force_charge": {"name": "Forced Charging"}
         },
         "button": {
             "reboot": {"name": "Reboot"}
@@ -97,7 +97,6 @@
             "eps_switch": {"name": "EPS Switch Status"},
             "soc_charge_limit": {"name": "SOC Charge Limit"},
             "soc_discharge_limit": {"name": "SOC Discharge Limit"},
-            "soc_force_charge": {"name": "SOC Force Charge Target"},
             "home_power": {"name": "Home Power"},
             "battery_net_power": {"name": "Battery Net Power"},
             "grid_net_power": {"name": "Grid Net Power"},

@@ -57,9 +57,6 @@
             "soc_discharge_limit": {
                 "name": "SOC Discharge Limit"
             },
-            "soc_force_charge": {
-                "name": "SOC Force Charge Target"
-            },
             "default_output_power": {
                 "name": "Default Output Power"
             },
@@ -79,6 +76,9 @@
             },
             "follow_meter_power": {
                 "name": "Follow Meter Power"
+            },
+            "force_charge": {
+                "name": "Forced Charging"
             }
         },
         "button": {
@@ -182,9 +182,6 @@
             },
             "soc_discharge_limit": {
                 "name": "SOC Discharge Limit"
-            },
-            "soc_force_charge": {
-                "name": "SOC Force Charge Target"
             },
             "home_power": {
                 "name": "Home Power"

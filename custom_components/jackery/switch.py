@@ -64,6 +64,12 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 config_entry_id=config_entry.entry_id,
             ),
+            JackeryOptimisticSwitch(
+                key="socForceChg",
+                translation_key="force_charge",
+                coordinator=coordinator,
+                config_entry_id=config_entry.entry_id,
+            ),
             JackeryFollowMeterSwitch(
                 key="isFollowMeterPw",
                 translation_key="follow_meter_power",
