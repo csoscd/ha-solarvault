@@ -250,7 +250,7 @@ A new **Options Flow** is available after setup (Settings → Devices & Services
 
 These sensors appear on the existing SmartMeter device card alongside the MQTT sensors. HTTP polling uses the SmartMeter's local IP address (learned from the `wip` field in MQTT type-101 data) and requires no credentials. The poll interval is configurable (2–60 s, default 10 s). HTTP polling is only active when `commMode = LAN` data flows via MQTT.
 
-**Enabling HTTP polling:** Options → enable "Poll SmartMeter via HTTP" → set interval → Save. An HA restart is **not** required; the polling loop starts immediately when the integration is reloaded.
+**Enabling HTTP polling:** Options → enable "Poll SmartMeter via HTTP" → set interval → Save. Then manually reload the integration (⋮ → Reload). Depending on your HA version, the reload may not trigger automatically after saving options.
 
 ---
 
