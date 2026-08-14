@@ -2306,6 +2306,10 @@ class JackeryDataCoordinator:
         entry = self.hass.config_entries.async_get_entry(self.config_entry_id)
         poll_interval: int = entry.options.get("smartmeter_poll_interval", 10) if entry else 10
         session = async_get_clientsession(self.hass)
+        # Mark unavailable after this many consecutive failures (~3 × poll_interval without data)
+        _FAILURE_THRESHOLD = 3
+        consecutive_failures = 0
+        last_sm_sn: str | None = None
 
         _LOGGER.info("SmartMeter HTTP poll loop started (interval=%ds)", poll_interval)
 
@@ -2316,7 +2320,9 @@ class JackeryDataCoordinator:
                     await asyncio.sleep(30)
                     continue
 
+                last_sm_sn = sm_sn
                 url = f"http://{ip}/api/measurement"
+                success = False
                 try:
                     async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                         if resp.status == 200:
@@ -2325,10 +2331,22 @@ class JackeryDataCoordinator:
                                 await self._create_http_sensors(sm_sn)
                                 self._http_sm_sensors_created = True
                             self._distribute_http_data(sm_sn, data)
+                            success = True
                         else:
                             _LOGGER.debug("SmartMeter HTTP %d from %s", resp.status, url)
                 except (aiohttp.ClientError, TimeoutError) as e:
                     _LOGGER.debug("SmartMeter HTTP poll failed (%s): %s", ip, e)
+
+                if success:
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures == _FAILURE_THRESHOLD:
+                        _LOGGER.warning(
+                            "SmartMeter HTTP unreachable for %d polls — marking sensors unavailable",
+                            _FAILURE_THRESHOLD,
+                        )
+                        self._mark_http_sensors_unavailable(sm_sn)
 
                 await asyncio.sleep(poll_interval)
 
@@ -2338,6 +2356,8 @@ class JackeryDataCoordinator:
                 _LOGGER.error("SmartMeter HTTP poll loop error: %s", e)
                 await asyncio.sleep(poll_interval)
 
+        if last_sm_sn:
+            self._mark_http_sensors_unavailable(last_sm_sn)
         _LOGGER.info("SmartMeter HTTP poll loop stopped")
 
     async def _create_http_sensors(self, sm_sn: str) -> None:
@@ -2364,6 +2384,13 @@ class JackeryDataCoordinator:
             entity = self._sensors.get(entity_id)
             if entity is not None and hasattr(entity, "_update_from_http"):
                 entity._update_from_http(data)
+
+    def _mark_http_sensors_unavailable(self, sm_sn: str) -> None:
+        """Mark all HTTP SmartMeter sensors as unavailable (e.g. after connection loss)."""
+        for sensor_key in SMARTMETER_HTTP_SENSOR_CONFIGS:
+            entity = self._sensors.get(f"http_{sm_sn}_{sensor_key}")
+            if entity is not None and hasattr(entity, "mark_http_unavailable"):
+                entity.mark_http_unavailable()
 
 
 async def async_setup_entry(
@@ -2878,3 +2905,9 @@ class JackerySmartMeterHttpSensor(SensorEntity):
             self.async_write_ha_state()
         except (TypeError, ValueError):
             pass
+
+    def mark_http_unavailable(self) -> None:
+        """Mark sensor unavailable (called after repeated HTTP failures)."""
+        if self._attr_available:
+            self._attr_available = False
+            self.async_write_ha_state()
