@@ -328,14 +328,6 @@ SENSORS = {
         "device_class": None,
         "state_class": SensorStateClass.MEASUREMENT,
     },
-    "soc_force_charge": {
-        "json_key": "socForceChg",
-        "name": "SOC Force Charge Target",
-        "unit": PERCENTAGE,
-        "icon": "mdi:battery-arrow-up-outline",
-        "device_class": None,
-        "state_class": SensorStateClass.MEASUREMENT,
-    },
     # "is_auto_standby": {
     #     "json_key": "isAutoStandby",
     #     "name": "Auto Standby Allowed",

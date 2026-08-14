@@ -57,9 +57,6 @@
             "soc_discharge_limit": {
                 "name": "Limite basse du SOC"
             },
-            "soc_force_charge": {
-                "name": "Objectif de charge forcée du SOC"
-            },
             "default_output_power": {
                 "name": "Puissance de sortie par défaut"
             },
@@ -79,6 +76,9 @@
             },
             "follow_meter_power": {
                 "name": "Suivi de la puissance du compteur"
+            },
+            "force_charge": {
+                "name": "Charge forcée"
             }
         },
         "button": {
@@ -182,9 +182,6 @@
             },
             "soc_discharge_limit": {
                 "name": "Limite basse du SOC"
-            },
-            "soc_force_charge": {
-                "name": "Objectif de charge forcée du SOC"
             },
             "home_power": {
                 "name": "Puissance vers la maison"

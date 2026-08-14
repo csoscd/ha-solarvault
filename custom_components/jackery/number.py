@@ -30,15 +30,7 @@ NUMBERS = {
         "unit": PERCENTAGE,
     },
     # maxOutPw moved to select.py (only 800 W / 2500 W are valid app values)
-    # socForceChg: confirmed writable via MQTT (cmd=5), device acknowledges with cmd=107.
-    # Exact purpose not fully determined: Storm Warning uses cloud, not this field.
-    # Hypothesis: manual force-charge to a target SOC, or backup-reserve threshold.
-    # Set to 0 to deactivate.
-    "socForceChg": {
-        "translation_key": "soc_force_charge",
-        "min": 0, "max": 100, "step": 1,
-        "unit": PERCENTAGE,
-    },
+    # socForceChg moved to switch.py (binary 0/1, not a percentage target)
     # defaultPw: fallback output power for Benutzerdefiniert mode (workModel=4).
     # Active when no time-based schedule entry is in effect.
     # App caps at 200 W with 10 W steps. Schedule slots (cloud-only) can reach 800 W.
