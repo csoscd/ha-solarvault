@@ -27,6 +27,20 @@
             "reauth_successful": "Neu-Authentifizierung war erfolgreich"
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Jackery Optionen",
+                "description": "Verbindungseinstellungen anpassen und optionales SmartMeter-HTTP-Polling konfigurieren.",
+                "data": {
+                    "token": "Token",
+                    "topic_prefix": "MQTT-Topic-Präfix",
+                    "smartmeter_http_poll": "SmartMeter per HTTP abfragen (Spannung, Strom, Blindleistung, …)",
+                    "smartmeter_poll_interval": "SmartMeter-Abfrageintervall (Sekunden)"
+                }
+            }
+        }
+    },
     "entity": {
         "select": {
             "auto_standby": {
@@ -437,7 +451,23 @@
             },
             "collector_ip_address": {
                 "name": "IP-Adresse"
-            }
+            },
+            "http_sm_voltage_l1":        {"name": "L1-Spannung"},
+            "http_sm_voltage_l2":        {"name": "L2-Spannung"},
+            "http_sm_voltage_l3":        {"name": "L3-Spannung"},
+            "http_sm_current_l1":        {"name": "L1-Strom"},
+            "http_sm_current_l2":        {"name": "L2-Strom"},
+            "http_sm_current_l3":        {"name": "L3-Strom"},
+            "http_sm_reactive_power_l1": {"name": "L1-Blindleistung"},
+            "http_sm_reactive_power_l2": {"name": "L2-Blindleistung"},
+            "http_sm_reactive_power_l3": {"name": "L3-Blindleistung"},
+            "http_sm_apparent_power_l1": {"name": "L1-Scheinleistung"},
+            "http_sm_apparent_power_l2": {"name": "L2-Scheinleistung"},
+            "http_sm_apparent_power_l3": {"name": "L3-Scheinleistung"},
+            "http_sm_power_factor_l1":   {"name": "L1-Leistungsfaktor"},
+            "http_sm_power_factor_l2":   {"name": "L2-Leistungsfaktor"},
+            "http_sm_power_factor_l3":   {"name": "L3-Leistungsfaktor"},
+            "http_sm_frequency":         {"name": "Netzfrequenz"}
         }
     }
 }

@@ -247,6 +247,31 @@ These sensors belong to the SmartMeter sub-device. Their entity IDs include the 
 | Communication State | `sensor.jackery_{smartmeter_sn}_communication_state` | `commState` | `online` / `offline` |
 | IP Address | `sensor.jackery_{smartmeter_sn}_ip_address` | `wip` | |
 
+### Additional sensors via HTTP (optional, v2.4.0+)
+
+Enable via Options Flow (Settings → Devices & Services → Jackery → ⚙ Configure → "Poll SmartMeter via HTTP").
+
+These sensors use the SmartMeter's local HTTP API (`GET /api/measurement`, no authentication). The SmartMeter's IP is learned from the `wip` MQTT field automatically. Unique IDs use the pattern `jackery_{device_sn}_http_sm_{smartmeter_sn}_{key}`.
+
+| Entity name | entity_id | HTTP field | Source |
+|---|---|---|---|
+| L1 Voltage | `sensor.jackery_{smartmeter_sn}_l1_voltage` | `volt1` | HTTP |
+| L2 Voltage | `sensor.jackery_{smartmeter_sn}_l2_voltage` | `volt2` | HTTP |
+| L3 Voltage | `sensor.jackery_{smartmeter_sn}_l3_voltage` | `volt3` | HTTP |
+| L1 Current | `sensor.jackery_{smartmeter_sn}_l1_current` | `curr1` | HTTP |
+| L2 Current | `sensor.jackery_{smartmeter_sn}_l2_current` | `curr2` | HTTP |
+| L3 Current | `sensor.jackery_{smartmeter_sn}_l3_current` | `curr3` | HTTP |
+| L1 Reactive Power | `sensor.jackery_{smartmeter_sn}_l1_reactive_power` | `rep1` | HTTP |
+| L2 Reactive Power | `sensor.jackery_{smartmeter_sn}_l2_reactive_power` | `rep2` | HTTP |
+| L3 Reactive Power | `sensor.jackery_{smartmeter_sn}_l3_reactive_power` | `rep3` | HTTP |
+| L1 Apparent Power | `sensor.jackery_{smartmeter_sn}_l1_apparent_power` | `ap1` | HTTP |
+| L2 Apparent Power | `sensor.jackery_{smartmeter_sn}_l2_apparent_power` | `ap2` | HTTP |
+| L3 Apparent Power | `sensor.jackery_{smartmeter_sn}_l3_apparent_power` | `ap3` | HTTP |
+| L1 Power Factor | `sensor.jackery_{smartmeter_sn}_l1_power_factor` | `fact1` × 0.001 | HTTP |
+| L2 Power Factor | `sensor.jackery_{smartmeter_sn}_l2_power_factor` | `fact2` × 0.001 | HTTP |
+| L3 Power Factor | `sensor.jackery_{smartmeter_sn}_l3_power_factor` | `fact3` × 0.001 | HTTP |
+| Grid Frequency | `sensor.jackery_{smartmeter_sn}_grid_frequency` | `freq` | HTTP |
+
 > **commMode: `cloud` means no measurement data**
 > The SmartMeter can switch autonomously from LAN (local MQTT) to Cloud relay mode after
 > internet outages. In Cloud mode `commState` stays `online`, but all measurement fields

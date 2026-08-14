@@ -7,6 +7,7 @@ import re
 import time
 from typing import Any
 
+import aiohttp
 from homeassistant.components import mqtt as ha_mqtt
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -17,12 +18,18 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    UnitOfApparentPower,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
     UnitOfEnergy,
+    UnitOfFrequency,
     UnitOfPower,
+    UnitOfReactivePower,
     UnitOfTemperature,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DOMAIN
@@ -1096,6 +1103,26 @@ _TYPE106_SKIP_IF_ESTABLISHED: frozenset[str] = frozenset({
 })
 
 
+SMARTMETER_HTTP_SENSOR_CONFIGS: dict[str, dict] = {
+    "voltage_l1":        {"key": "volt1", "unit": UnitOfElectricPotential.VOLT,           "device_class": SensorDeviceClass.VOLTAGE,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:lightning-bolt"},
+    "voltage_l2":        {"key": "volt2", "unit": UnitOfElectricPotential.VOLT,           "device_class": SensorDeviceClass.VOLTAGE,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:lightning-bolt"},
+    "voltage_l3":        {"key": "volt3", "unit": UnitOfElectricPotential.VOLT,           "device_class": SensorDeviceClass.VOLTAGE,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:lightning-bolt"},
+    "current_l1":        {"key": "curr1", "unit": UnitOfElectricCurrent.AMPERE,           "device_class": SensorDeviceClass.CURRENT,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:current-ac"},
+    "current_l2":        {"key": "curr2", "unit": UnitOfElectricCurrent.AMPERE,           "device_class": SensorDeviceClass.CURRENT,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:current-ac"},
+    "current_l3":        {"key": "curr3", "unit": UnitOfElectricCurrent.AMPERE,           "device_class": SensorDeviceClass.CURRENT,        "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:current-ac"},
+    "reactive_power_l1": {"key": "rep1",  "unit": UnitOfReactivePower.VOLT_AMPERE_REACTIVE,"device_class": SensorDeviceClass.REACTIVE_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:sine-wave"},
+    "reactive_power_l2": {"key": "rep2",  "unit": UnitOfReactivePower.VOLT_AMPERE_REACTIVE,"device_class": SensorDeviceClass.REACTIVE_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:sine-wave"},
+    "reactive_power_l3": {"key": "rep3",  "unit": UnitOfReactivePower.VOLT_AMPERE_REACTIVE,"device_class": SensorDeviceClass.REACTIVE_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:sine-wave"},
+    "apparent_power_l1": {"key": "ap1",   "unit": UnitOfApparentPower.VOLT_AMPERE,        "device_class": SensorDeviceClass.APPARENT_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:flash"},
+    "apparent_power_l2": {"key": "ap2",   "unit": UnitOfApparentPower.VOLT_AMPERE,        "device_class": SensorDeviceClass.APPARENT_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:flash"},
+    "apparent_power_l3": {"key": "ap3",   "unit": UnitOfApparentPower.VOLT_AMPERE,        "device_class": SensorDeviceClass.APPARENT_POWER, "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:flash"},
+    "power_factor_l1":   {"key": "fact1", "unit": None, "scale": 0.001,                  "device_class": SensorDeviceClass.POWER_FACTOR,  "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:angle-acute"},
+    "power_factor_l2":   {"key": "fact2", "unit": None, "scale": 0.001,                  "device_class": SensorDeviceClass.POWER_FACTOR,  "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:angle-acute"},
+    "power_factor_l3":   {"key": "fact3", "unit": None, "scale": 0.001,                  "device_class": SensorDeviceClass.POWER_FACTOR,  "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:angle-acute"},
+    "frequency":         {"key": "freq",  "unit": UnitOfFrequency.HERTZ,                 "device_class": SensorDeviceClass.FREQUENCY,     "state_class": SensorStateClass.MEASUREMENT, "icon": "mdi:sine-wave"},
+}
+
+
 def plug_comm_mode(item: dict) -> int | None:
     """Read plug commMode (1=local, 2=cloud)."""
     val = item.get("commMode")
@@ -1317,6 +1344,10 @@ class JackeryDataCoordinator:
         self._ever_received: bool = False
         self.config_entry_id: str = ""  # set by async_setup_entry
 
+        # SmartMeter HTTP polling (optional feature, controlled via options flow)
+        self._smartmeter_http_task: asyncio.Task[None] | None = None
+        self._http_sm_sensors_created: bool = False
+
         self._topic_status_wildcard = f"{self._topic_root}/device/+/status"
         self._topic_event_wildcard = f"{self._topic_root}/device/+/event"
 
@@ -1362,6 +1393,12 @@ class JackeryDataCoordinator:
             # 启动定时轮询
             self._data_task = asyncio.create_task(self._periodic_data_request())
 
+            # Start optional SmartMeter HTTP polling if enabled in options
+            entry = self.hass.config_entries.async_get_entry(self.config_entry_id)
+            if entry and entry.options.get("smartmeter_http_poll", False):
+                self._smartmeter_http_task = asyncio.create_task(self._smartmeter_http_poll_loop())
+                _LOGGER.info("SmartMeter HTTP polling enabled (interval=%ds)", entry.options.get("smartmeter_poll_interval", 10))
+
         except Exception as e:
             _LOGGER.error(f"Failed to start coordinator: {e}")
 
@@ -1371,6 +1408,12 @@ class JackeryDataCoordinator:
             self._data_task.cancel()
             try:
                 await self._data_task
+            except asyncio.CancelledError:
+                pass
+        if self._smartmeter_http_task and not self._smartmeter_http_task.done():
+            self._smartmeter_http_task.cancel()
+            try:
+                await self._smartmeter_http_task
             except asyncio.CancelledError:
                 pass
         _LOGGER.info("Coordinator stopped")
@@ -2247,6 +2290,108 @@ class JackeryDataCoordinator:
 
         _LOGGER.debug("Sent poll requests to %s", action_topic)
 
+    def _find_smartmeter_ip_and_sn(self) -> tuple[str | None, str | None]:
+        """Find SmartMeter HTO907A IP and SN from MQTT cache (cts list, devType=3, subType=5)."""
+        cts = self._data_cache.get("cts") or []
+        for item in cts:
+            if isinstance(item, dict) and item.get("devType") == 3 and item.get("subType") == 5:
+                ip = item.get("wip")
+                sn = item.get("deviceSn") or item.get("sn")
+                if ip and sn:
+                    return str(ip), str(sn)
+        return None, None
+
+    async def _smartmeter_http_poll_loop(self) -> None:
+        """Poll SmartMeter HTO907A HTTP API for additional sensor data (voltage, current, etc.)."""
+        entry = self.hass.config_entries.async_get_entry(self.config_entry_id)
+        poll_interval: int = entry.options.get("smartmeter_poll_interval", 10) if entry else 10
+        session = async_get_clientsession(self.hass)
+        # Mark unavailable after this many consecutive failures (~3 × poll_interval without data)
+        _FAILURE_THRESHOLD = 3
+        consecutive_failures = 0
+        last_sm_sn: str | None = None
+
+        _LOGGER.info("SmartMeter HTTP poll loop started (interval=%ds)", poll_interval)
+
+        while True:
+            try:
+                ip, sm_sn = self._find_smartmeter_ip_and_sn()
+                if not ip or not sm_sn:
+                    await asyncio.sleep(30)
+                    continue
+
+                last_sm_sn = sm_sn
+                url = f"http://{ip}/api/measurement"
+                success = False
+                try:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json(content_type=None)
+                            if not self._http_sm_sensors_created:
+                                await self._create_http_sensors(sm_sn)
+                                self._http_sm_sensors_created = True
+                            self._distribute_http_data(sm_sn, data)
+                            success = True
+                        else:
+                            _LOGGER.debug("SmartMeter HTTP %d from %s", resp.status, url)
+                except (aiohttp.ClientError, TimeoutError) as e:
+                    _LOGGER.debug("SmartMeter HTTP poll failed (%s): %s", ip, e)
+
+                if success:
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures == _FAILURE_THRESHOLD:
+                        _LOGGER.warning(
+                            "SmartMeter HTTP unreachable for %d polls — marking sensors unavailable",
+                            _FAILURE_THRESHOLD,
+                        )
+                        self._mark_http_sensors_unavailable(sm_sn)
+
+                await asyncio.sleep(poll_interval)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                _LOGGER.error("SmartMeter HTTP poll loop error: %s", e)
+                await asyncio.sleep(poll_interval)
+
+        if last_sm_sn:
+            self._mark_http_sensors_unavailable(last_sm_sn)
+        _LOGGER.info("SmartMeter HTTP poll loop stopped")
+
+    async def _create_http_sensors(self, sm_sn: str) -> None:
+        """Create JackerySmartMeterHttpSensor entities for the given SmartMeter SN."""
+        if not self.add_entities_callback:
+            return
+        new_entities = [
+            JackerySmartMeterHttpSensor(
+                sm_sn=sm_sn,
+                sensor_key=sensor_key,
+                sensor_config=sensor_config,
+                coordinator=self,
+                config_entry_id=self.config_entry_id,
+            )
+            for sensor_key, sensor_config in SMARTMETER_HTTP_SENSOR_CONFIGS.items()
+        ]
+        self.add_entities_callback(new_entities)
+        _LOGGER.info("Created %d SmartMeter HTTP sensor entities for SN %s", len(new_entities), sm_sn)
+
+    def _distribute_http_data(self, sm_sn: str, data: dict) -> None:
+        """Push HTTP measurement data to registered SmartMeter HTTP sensor entities."""
+        for sensor_key in SMARTMETER_HTTP_SENSOR_CONFIGS:
+            entity_id = f"http_{sm_sn}_{sensor_key}"
+            entity = self._sensors.get(entity_id)
+            if entity is not None and hasattr(entity, "_update_from_http"):
+                entity._update_from_http(data)
+
+    def _mark_http_sensors_unavailable(self, sm_sn: str) -> None:
+        """Mark all HTTP SmartMeter sensors as unavailable (e.g. after connection loss)."""
+        for sensor_key in SMARTMETER_HTTP_SENSOR_CONFIGS:
+            entity = self._sensors.get(f"http_{sm_sn}_{sensor_key}")
+            if entity is not None and hasattr(entity, "mark_http_unavailable"):
+                entity.mark_http_unavailable()
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -2699,3 +2844,70 @@ class JackerySubDeviceSensor(SensorEntity):
                 "totalEgy": raw.get("totalEgy"),
             })
         return attrs
+
+
+class JackerySmartMeterHttpSensor(SensorEntity):
+    """Sensor populated via HTTP polling of the SmartMeter HTO907A API."""
+
+    def __init__(
+        self,
+        sm_sn: str,
+        sensor_key: str,
+        sensor_config: dict,
+        coordinator: JackeryDataCoordinator,
+        config_entry_id: str,
+    ) -> None:
+        self._sm_sn = sm_sn
+        self._sensor_key = sensor_key
+        self._sensor_config = sensor_config
+        self._coordinator = coordinator
+
+        self._attr_translation_key = f"http_sm_{sensor_key}"
+        self._attr_has_entity_name = True
+        self._attr_native_unit_of_measurement = sensor_config.get("unit")
+        self._attr_device_class = sensor_config.get("device_class")
+        self._attr_state_class = sensor_config.get("state_class")
+        self._attr_icon = sensor_config.get("icon")
+        self._attr_available = False
+
+        self._attr_unique_id = f"jackery_{coordinator._device_sn}_http_sm_{sm_sn}_{sensor_key}"
+
+        main_device_id = coordinator._device_sn or config_entry_id
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"sub_{sm_sn}")},
+            "via_device": (DOMAIN, main_device_id),
+            "name": f"Jackery SmartMeter {sm_sn}",
+            "manufacturer": "Jackery",
+            "model": "SmartMeter HTO907A",
+        }
+
+    @property
+    def should_poll(self) -> bool:
+        return False
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._coordinator.register_sensor(f"http_{self._sm_sn}_{self._sensor_key}", self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        self._coordinator.unregister_sensor(f"http_{self._sm_sn}_{self._sensor_key}")
+        await super().async_will_remove_from_hass()
+
+    def _update_from_http(self, data: dict) -> None:
+        field_key = self._sensor_config.get("key")
+        val = data.get(field_key)
+        if val is None:
+            return
+        scale = self._sensor_config.get("scale", 1)
+        try:
+            self._attr_native_value = float(val) * scale
+            self._attr_available = True
+            self.async_write_ha_state()
+        except (TypeError, ValueError):
+            pass
+
+    def mark_http_unavailable(self) -> None:
+        """Mark sensor unavailable (called after repeated HTTP failures)."""
+        if self._attr_available:
+            self._attr_available = False
+            self.async_write_ha_state()
