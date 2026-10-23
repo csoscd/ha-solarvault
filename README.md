@@ -230,6 +230,17 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.5.3
+
+Fix for SmartMeter entity duplication on every HA restart (issue #25, contributed by @cofade via PR #26):
+
+- **Root cause:** The `_migrate_unique_ids()` migration in `__init__.py` detected sub-device entities by checking for an uppercase character in the serial number. The SmartMeter HTO907A reports its serial in **lowercase** (`ac1518779cb4`), so all 19 SmartMeter entities were misidentified as main-device sensors, their `unique_id` was rewritten to the wrong format, and the integration created duplicates with a `_2` suffix on every restart.
+- **Fix:** Sub-devices are now detected via the HA device registry (`identifiers: (jackery, sub_{sn})`) instead of string heuristics. Already-broken `unique_id`s are repaired automatically on the next HA start (older entity wins; duplicates are removed). The migration is idempotent.
+
+**Who is affected:** Users whose SmartMeter serial number is lowercase (HTO907A). If you see sensors ending in `_2` (e.g. `sensor.jackery_smartmeter_ac..._l3_bezugsleistung_2`) alongside unavailable originals, this fix resolves them automatically after the HA restart that applies the update.
+
+---
+
 ### What's new in v2.5.2
 
 Two robustness fixes backported from community fork analysis (fred-head fork, PRs #25/#43):
