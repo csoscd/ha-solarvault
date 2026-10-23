@@ -14,6 +14,84 @@ DOMAIN = "jackery"
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
 
 
+def _repair_subdevice_unique_id(
+    ent_reg: er.EntityRegistry,
+    entity_entry: er.RegistryEntry,
+    uid_owner: dict[str, er.RegistryEntry],
+    new_prefix: str,
+) -> None:
+    """Restore the canonical unique_id of a sub-device entity.
+
+    A buggy earlier run of the v2.x migration rewrote the unique_id of sub-device
+    entities from the canonical jackery_{subtype}_{sn}_{key} to the main-device
+    format jackery_{device_sn}_{subtype}_{sn}_{key}. The integration then no longer
+    matched the entity and created a second one with a "_2" suffix, while the
+    original stayed "unavailable" forever.
+
+    If the canonical unique_id is already held by a second entity (the "_2"
+    duplicate), the OLDER entity wins - it keeps the plain entity_id without the
+    ugly "_2" suffix - and the newer duplicate is removed.
+
+    See issue #25 for the full analysis.
+    """
+    uid = entity_entry.unique_id
+    if not uid.startswith(new_prefix):
+        # Already canonical (jackery_{subtype}_{sn}_{key}) or unknown format.
+        return
+
+    canonical = f"jackery_{uid[len(new_prefix) :]}"
+    holder = uid_owner.get(canonical)
+    if holder is not None and holder.entity_id != entity_entry.entity_id:
+        # Which entry keeps the canonical unique_id? The OLDER one: the buggy
+        # migration rewrote the original entity's unique_id first and created the
+        # duplicate afterwards, so the older entry is the original and keeps the
+        # plain entity_id (without the "_2" suffix). Tie-break for entities created
+        # within the same clock tick: the shorter entity_id wins.
+        holder_wins = (holder.created_at, len(holder.entity_id)) < (
+            entity_entry.created_at,
+            len(entity_entry.entity_id),
+        )
+        if not holder_wins:
+            # The holder is the NEWER entry (the duplicate the bug created) ->
+            # remove it, this (older) entity takes the canonical unique_id and
+            # keeps its plain entity_id without the "_2" suffix.
+            _LOGGER.info(
+                "Removing duplicate sub-device entity: %s (%s) - canonical unique_id %s goes to the older entity",
+                holder.unique_id,
+                holder.entity_id,
+                canonical,
+            )
+            try:
+                ent_reg.async_remove(holder.entity_id)
+            except KeyError:
+                pass
+        else:
+            _LOGGER.info(
+                "Removing broken sub-device entity: %s (%s) - canonical unique_id %s is held by the older entity",
+                uid,
+                entity_entry.entity_id,
+                canonical,
+            )
+            try:
+                ent_reg.async_remove(entity_entry.entity_id)
+            except KeyError:
+                pass
+            return
+
+    _LOGGER.info(
+        "Repairing sub-device unique_id: %s -> %s (%s)",
+        uid,
+        canonical,
+        entity_entry.entity_id,
+    )
+    try:
+        ent_reg.async_update_entity(entity_entry.entity_id, new_unique_id=canonical)
+    except ValueError as err:
+        _LOGGER.warning("Could not repair unique_id of %s: %s", entity_entry.entity_id, err)
+        return
+    uid_owner[canonical] = entity_entry
+
+
 async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Migrate entity unique IDs from v1.x single-instance format to v2.0 multi-instance format.
 
@@ -43,10 +121,33 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     ent_reg = er.async_get(hass)
     all_entries = list(er.async_entries_for_config_entry(ent_reg, entry_id))
     existing_uids: set[str] = {e.unique_id for e in all_entries if e.unique_id}
+    uid_owner: dict[str, er.RegistryEntry] = {e.unique_id: e for e in all_entries if e.unique_id}
+
+    # Sub-device entities (SmartMeter, expansion battery, plug, CT) live on their own
+    # device in the device registry (identifiers: (jackery, sub_{sn})). They are
+    # detected here via that device instead of via the unique_id string, because the
+    # sub-device SN is NOT always uppercase: the SmartMeter HTO907A reports it in
+    # lowercase ("ac1518779cb4"). The former isupper() check therefore misclassified
+    # the SmartMeter entities as main-device sensors and rewrote their unique_id to
+    # jackery_{device_sn}_smartmeter_{sn}_{key}. The integration no longer matched
+    # them afterwards and created a second set of entities with a "_2" suffix, while
+    # the originals stayed "unavailable" forever. See issue #25.
+    device_reg = dr.async_get(hass)
+    subdevice_device_ids: set[str] = {
+        device.id
+        for device in device_reg.devices.values()
+        for domain, identifier in device.identifiers
+        if domain == DOMAIN and identifier.startswith("sub_")
+    }
 
     for entity_entry in all_entries:
         uid = entity_entry.unique_id
         if not uid or not uid.startswith("jackery_"):
+            continue
+
+        # Sub-device entity -> repair its unique_id (see _repair_subdevice_unique_id)
+        if entity_entry.device_id and entity_entry.device_id in subdevice_device_ids:
+            _repair_subdevice_unique_id(ent_reg, entity_entry, uid_owner, new_prefix)
             continue
 
         if uid.startswith(new_prefix):
@@ -69,9 +170,9 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
         suffix = uid[len("jackery_"):]
 
-        # Sub-device sensors: identified by uppercase SN after device-name prefix.
-        # v1.3.9 format: jackery_SmartMeter_{SN}_{key}, jackery_Battery_{SN}_{key}
-        # The character after the prefix is uppercase for sub-device SNs.
+        # NOTE: sub-device entities are already handled above via the device registry.
+        # The string-based check below is only a fallback for legacy entities without
+        # a device assignment.
         is_subdevice = False
         for sub_prefix in ("smartmeter_", "battery_", "plug_", "ct_"):
             if suffix.startswith(sub_prefix):

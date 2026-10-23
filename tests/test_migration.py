@@ -5,6 +5,7 @@ A wrong migration destroys HA history permanently — must be thoroughly tested.
 """
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,6 +19,11 @@ pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
 _DEVICE_SN = "TESTSN001"
 _PATCH_MQTT = "homeassistant.components.mqtt.async_wait_for_mqtt_client"
+
+# SmartMeter HTO907A reports its serial in lowercase, the expansion battery in
+# uppercase. The old migration only detected uppercase serials, so every SmartMeter
+# entity was rewritten to the main-device unique_id format and duplicated.
+_SM_SERIAL = "ac1518779cb4"
 
 
 async def _create_entry(hass):
@@ -37,6 +43,16 @@ def _find_by_uid(ent_reg, entry_id, uid):
         e for e in er.async_entries_for_config_entry(ent_reg, entry_id)
         if e.unique_id == uid
     ]
+
+
+def _create_sub_device(hass, entry, serial=_SM_SERIAL):
+    """Create a sub-device (SmartMeter) in the device registry and return it."""
+    dev_reg = dr.async_get(hass)
+    return dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"sub_{serial}")},
+        name=f"Jackery SmartMeter {serial}",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +92,115 @@ async def test_subdevice_uid_preserved(hass):
 
     assert _find_by_uid(ent_reg, entry.entry_id, old_uid), \
         "Sub-device entity must be preserved unchanged"
+
+
+async def test_subdevice_uid_preserved_with_lowercase_serial(hass):
+    """Sub-device entity with a LOWERCASE serial must not be migrated either.
+
+    The SmartMeter HTO907A reports its serial in lowercase ("ac1518779cb4"). The old
+    migration detected sub-devices by an uppercase character after the prefix, so it
+    rewrote every SmartMeter unique_id to the main-device format - which made the
+    integration create a duplicate entity with a "_2" suffix on every restart.
+    """
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    uid = f"jackery_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", uid, config_entry=entry, device_id=sub_device.id
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    assert _find_by_uid(ent_reg, entry.entry_id, uid), \
+        "Sub-device entity with lowercase serial must be preserved unchanged"
+    assert not _find_by_uid(ent_reg, entry.entry_id, f"jackery_{_DEVICE_SN}_smartmeter_{_SM_SERIAL}_importl3"), \
+        "Lowercase-serial sub-device entity must not be rewritten to the main-device format"
+
+
+async def test_broken_subdevice_uid_repaired(hass):
+    """A unique_id rewritten by the old buggy migration must be repaired."""
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    broken_uid = f"jackery_{_DEVICE_SN}_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid, config_entry=entry, device_id=sub_device.id
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    assert _find_by_uid(ent_reg, entry.entry_id, f"jackery_smartmeter_{_SM_SERIAL}_importl3"), \
+        "Broken unique_id must be repaired to the canonical sub-device format"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken unique_id must be gone after the repair"
+
+
+async def test_duplicate_subdevice_entity_removed(hass):
+    """The plain (older) entity keeps the canonical unique_id, the "_2" duplicate is removed."""
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    broken_uid = f"jackery_{_DEVICE_SN}_smartmeter_{_SM_SERIAL}_importl3"
+    original = ent_reg.async_get_or_create(
+        "sensor",
+        "jackery",
+        broken_uid,
+        config_entry=entry,
+        device_id=sub_device.id,
+        suggested_object_id=f"jackery_smartmeter_{_SM_SERIAL}_l3_bezugsleistung",
+    )
+    await asyncio.sleep(0.02)
+    duplicate = ent_reg.async_get_or_create(
+        "sensor",
+        "jackery",
+        f"jackery_smartmeter_{_SM_SERIAL}_importl3",
+        config_entry=entry,
+        device_id=sub_device.id,
+        suggested_object_id=f"jackery_smartmeter_{_SM_SERIAL}_l3_bezugsleistung",
+    )
+    assert duplicate.entity_id.endswith("_2"), \
+        "The second entity with the same name must get the '_2' suffix"
+
+    await _migrate_unique_ids(hass, entry)
+
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken unique_id must be gone"
+    holders = _find_by_uid(ent_reg, entry.entry_id, f"jackery_smartmeter_{_SM_SERIAL}_importl3")
+    assert len(holders) == 1, \
+        "Exactly one entity must hold the canonical unique_id"
+    assert holders[0].entity_id == original.entity_id, \
+        "The original entity must keep the canonical unique_id and its plain entity_id"
+
+
+async def test_broken_duplicate_removed_when_holder_is_older(hass):
+    """If the canonical unique_id is held by the older entity, the broken one is removed."""
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    canonical_uid = f"jackery_smartmeter_{_SM_SERIAL}_importl3"
+    holder = ent_reg.async_get_or_create(
+        "sensor", "jackery", canonical_uid, config_entry=entry, device_id=sub_device.id
+    )
+    await asyncio.sleep(0.02)
+    broken_uid = f"jackery_{_DEVICE_SN}_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid, config_entry=entry, device_id=sub_device.id
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    holders = _find_by_uid(ent_reg, entry.entry_id, canonical_uid)
+    assert len(holders) == 1, \
+        "Exactly one entity must hold the canonical unique_id"
+    assert holders[0].entity_id == holder.entity_id, \
+        "The older entity must keep the canonical unique_id"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "The broken duplicate must be removed"
 
 
 # ---------------------------------------------------------------------------
