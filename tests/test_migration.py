@@ -55,6 +55,28 @@ def _create_sub_device(hass, entry, serial=_SM_SERIAL):
     )
 
 
+async def test_migration_ignores_other_device_identifier_shapes(hass):
+    """An unrelated three-part HomeKit identifier must not abort migration."""
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    device_reg = dr.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+    uid = f"jackery_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", uid, config_entry=entry, device_id=sub_device.id
+    )
+    ent_reg.async_get_or_create("sensor", "jackery", "jackery_battery_soc", config_entry=entry)
+
+    registry = MagicMock(wraps=device_reg)
+    unrelated = MagicMock(identifiers={("homekit", "bridge", "accessory")})
+    registry.devices.__iter__.return_value = iter([*device_reg.devices, unrelated])
+    with patch("custom_components.jackery.dr.async_get", return_value=registry):
+        await _migrate_unique_ids(hass, entry)
+
+    assert _find_by_uid(ent_reg, entry.entry_id, uid)
+    assert _find_by_uid(ent_reg, entry.entry_id, f"jackery_{_DEVICE_SN}_battery_soc")
+
+
 # ---------------------------------------------------------------------------
 # Main sensor migration
 # ---------------------------------------------------------------------------
