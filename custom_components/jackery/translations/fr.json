@@ -286,7 +286,8 @@
                     "alarm": "Alarme",
                     "fault": "Défaut",
                     "standby": "Veille",
-                    "low_power": "Puissance faible"
+                    "low_power": "Puissance faible",
+                    "fast_charging": "Charge rapide"
                 }
             },
             "ongrid_status": {

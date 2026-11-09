@@ -146,7 +146,8 @@
                     "alarm": "Alarm",
                     "fault": "Fault",
                     "standby": "Standby",
-                    "low_power": "Low Power"
+                    "low_power": "Low Power",
+                    "fast_charging": "Fast charging"
                 }
             },
             "ongrid_status": {

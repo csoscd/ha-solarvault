@@ -286,7 +286,8 @@
                     "alarm": "Alarm",
                     "fault": "Fehler",
                     "standby": "Standby",
-                    "low_power": "Energiesparmodus"
+                    "low_power": "Energiesparmodus",
+                    "fast_charging": "Schnellladen"
                 }
             },
             "ongrid_status": {

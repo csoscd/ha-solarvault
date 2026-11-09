@@ -51,6 +51,7 @@ DEFAULT_MODEL = "Energy Monitor"
 # ENUM value → option-key maps for status sensors (Ü5/Ü6 from upstream v2.0.0)
 DEVICE_STATUS_MAP: dict[int, str] = {
     0: "normal", 1: "waiting", 2: "alarm", 3: "fault", 4: "standby", 5: "low_power",
+    8: "fast_charging",
 }
 ONGRID_STATUS_MAP: dict[int, str] = {0: "disconnected", 1: "connected"}
 CT_STATUS_MAP: dict[int, str] = {0: "disconnected", 1: "connected"}
@@ -2611,6 +2612,8 @@ class JackerySensor(SensorEntity):
         self._attr_icon = self._config["icon"]
         self._attr_device_class = self._config["device_class"]
         self._attr_state_class = self._config["state_class"]
+        self._has_enum_raw_value: bool = False
+        self._enum_raw_value: Any = None
         # Multi-instance unique ID: includes device_sn so two SolarVaults on the same HA don't clash
         device_sn = coordinator._device_sn or config_entry_id
         self._attr_unique_id = f"jackery_{device_sn}_{sensor_id}"
@@ -2680,11 +2683,14 @@ class JackerySensor(SensorEntity):
         else:
             value_map = self._config.get("value_map")
             if value_map is not None:
-                # ENUM sensor: translate integer MQTT value to option string (Ü5)
+                # ENUM sensors must only publish configured options or None (HA unknown).
+                # Keep the raw value for diagnostics when the protocol gains new enum states.
+                self._enum_raw_value = value
+                self._has_enum_raw_value = True
                 try:
-                    self._attr_native_value = value_map.get(int(value), str(value))
-                except (TypeError, ValueError):
-                    self._attr_native_value = str(value)  # type: ignore[assignment]
+                    self._attr_native_value = value_map.get(int(value))
+                except (TypeError, ValueError, OverflowError):
+                    self._attr_native_value = None
             else:
                 scale = self._config.get("scale", 1)
                 try:
@@ -2706,6 +2712,8 @@ class JackerySensor(SensorEntity):
             "raw_key": self._config.get("json_key"),
         }
         # Decode the funcEnable bitmask into named flags for troubleshooting.
+        if getattr(self, "_has_enum_raw_value", False):
+            attrs["raw_value"] = self._enum_raw_value
         if self._sensor_id == "func_enable":
             raw_bits: Any = self._coordinator._data_cache.get("funcEnable")
             try:

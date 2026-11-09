@@ -14,6 +14,8 @@ def make_sensor(sensor_id: str, coord: JackeryDataCoordinator) -> JackerySensor:
     sensor._config = SENSORS[sensor_id]
     sensor._attr_native_value = None
     sensor._attr_available = False
+    sensor._has_enum_raw_value = False
+    sensor._enum_raw_value = None
     sensor.async_write_ha_state = MagicMock()
     return sensor
 
@@ -147,3 +149,33 @@ def test_state_written_after_update(coordinator):
     sensor = make_sensor("battery_soc", coordinator)
     sensor._update_from_coordinator({"batSoc": 80})
     sensor.async_write_ha_state.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# device_status: ENUM mapping incl. fast_charging (stat=8)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected"),
+    [
+        (0, "normal"),
+        (5, "low_power"),
+        (8, "fast_charging"),
+    ],
+)
+def test_device_status_known_values_map_to_enum_options(coordinator, raw_value, expected):
+    sensor = make_sensor("device_status", coordinator)
+    sensor._update_from_coordinator({"stat": raw_value})
+    assert sensor._attr_native_value == expected
+    assert sensor._attr_native_value in sensor._config["options"]
+    assert sensor.extra_state_attributes["raw_value"] == raw_value
+    assert sensor._attr_available is True
+
+
+@pytest.mark.parametrize("raw_value", [6, 7, 999, "garbage"])
+def test_device_status_unknown_values_set_none_and_expose_raw(coordinator, raw_value):
+    sensor = make_sensor("device_status", coordinator)
+    sensor._update_from_coordinator({"stat": raw_value})
+    assert sensor._attr_native_value is None
+    assert sensor.extra_state_attributes["raw_value"] == raw_value
+    assert sensor._attr_available is True
