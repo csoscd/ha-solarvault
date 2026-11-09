@@ -53,7 +53,7 @@ Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 | WLAN IP | `wip` | IP address of the SolarVault on the WiFi network |
 | Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
 | Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
-| Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power |
+| Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power / fast_charging |
 | OnGrid Status | `ongridStat` | Grid-tie status: disconnected / connected |
 | CT Status | `ctStat` | CT meter connection status: disconnected / connected |
 | Grid Meter Link | `gridSate` | Grid meter link health: not_linked / linked |
@@ -227,6 +227,12 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 | **Validate** | HACS validation, Hassfest validation |
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) is configured to keep GitHub Actions versions up to date (weekly, Mondays).
+
+---
+
+### What's new in v2.5.4
+
+- **Device Status `fast_charging` (stat=8):** The `device_status` sensor now maps `stat=8` to the `fast_charging` state (translated: DE "Schnellladen", FR "Charge rapide"). Previously this value was shown as a raw integer. Unknown future enum values now produce HA's "unknown" state and expose the raw MQTT value as a diagnostic attribute (`raw_value`).
 
 ---
 
