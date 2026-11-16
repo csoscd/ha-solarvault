@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.5] – 2026-11-16
+
+### Fixed
+
+- **Startup crash with 3-part device identifiers** (Issues #27, #28): `_migrate_unique_ids()`
+  in `__init__.py` iterated over all device-registry identifiers and unpacked each as a
+  2-tuple. Integrations such as HomeKit register devices with 3-element identifiers, causing:
+  `ValueError: too many values to unpack (expected 2, got 3)` — the Jackery integration
+  failed to load entirely for affected users. Fixed by guarding with `len(identifier) == 2`
+  and `isinstance(identifier[1], str)` before accessing the tuple elements. `.values()` is
+  retained — `DeviceRegistryItems.__iter__` yields keys, not `DeviceEntry` objects.
+
+---
+
 ## [2.4.2] – 2026-09-17
 
 ### Fixed

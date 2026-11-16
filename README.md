@@ -230,6 +230,14 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.5.5
+
+- **Startup crash with 3-part device identifiers fixed** (issues #27, #28): `_migrate_unique_ids()` crashed with `ValueError: too many values to unpack (expected 2, got 3)` if any other integration (e.g. HomeKit bridge) registered a device with a 3-element identifier in the HA device registry. The Jackery integration then failed to load entirely. Fixed with an explicit `len(identifier) == 2` guard.
+
+**Who is affected:** Users running v2.5.3 or v2.5.4 who have a HomeKit bridge, Thread border router, or any other integration that uses 3-part device identifiers. After installing v2.5.5, the integration loads normally again without any manual intervention.
+
+---
+
 ### What's new in v2.5.4
 
 - **Device Status `fast_charging` (stat=8):** The `device_status` sensor now maps `stat=8` to the `fast_charging` state (translated: DE "Schnellladen", FR "Charge rapide"). Previously this value was shown as a raw integer. Unknown future enum values now produce HA's "unknown" state and expose the raw MQTT value as a diagnostic attribute (`raw_value`).

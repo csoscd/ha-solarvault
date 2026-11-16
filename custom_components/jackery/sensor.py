@@ -2690,7 +2690,7 @@ class JackerySensor(SensorEntity):
                 try:
                     self._attr_native_value = value_map.get(int(value))
                 except (TypeError, ValueError, OverflowError):
-                    self._attr_native_value = None
+                    self._attr_native_value = None  # type: ignore[assignment]
             else:
                 scale = self._config.get("scale", 1)
                 try:

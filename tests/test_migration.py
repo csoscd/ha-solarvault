@@ -291,3 +291,52 @@ async def test_empty_sn_skips_migration(hass):
 
     assert _find_by_uid(ent_reg, entry.entry_id, old_uid), \
         "Entity must not be migrated when device_sn is empty/whitespace"
+
+
+# ---------------------------------------------------------------------------
+# 3-part identifiers from unrelated integrations must not crash migration
+# ---------------------------------------------------------------------------
+
+async def test_migration_survives_three_part_identifier(hass):
+    """Migration must not crash when a foreign device has a 3-element identifier.
+
+    Regression for the ValueError introduced in v2.5.3: the loop iterated over
+    all device-registry identifiers and unpacked each as a 2-tuple.  Devices from
+    integrations like HomeKit can carry 3-element identifiers, which caused:
+
+        ValueError: too many values to unpack (expected 2, got 3)
+
+    The fix guards with ``len(identifier) == 2`` before accessing the elements.
+    """
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    # A real Jackery sub-device entity (lowercase serial — the SmartMeter case)
+    sub_uid = f"jackery_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", sub_uid, config_entry=entry, device_id=sub_device.id
+    )
+    # A main-device entity that should get the SN prefix
+    ent_reg.async_get_or_create("sensor", "jackery", "jackery_battery_soc", config_entry=entry)
+
+    # An unrelated integration whose device has a 3-element identifier
+    foreign_entry = MockConfigEntry(domain="homekit")
+    foreign_entry.add_to_hass(hass)
+    dev_reg.async_get_or_create(
+        config_entry_id=foreign_entry.entry_id,
+        identifiers={("homekit", "bridge", "accessory")},
+    )
+
+    # Must not raise ValueError
+    await _migrate_unique_ids(hass, entry)
+
+    # Sub-device entity must be unchanged
+    assert _find_by_uid(ent_reg, entry.entry_id, sub_uid), \
+        "Sub-device entity must be preserved unchanged"
+    # Main-device entity must be migrated normally
+    assert _find_by_uid(ent_reg, entry.entry_id, f"jackery_{_DEVICE_SN}_battery_soc"), \
+        "Main-device entity must be migrated to the SN-prefixed unique_id"
