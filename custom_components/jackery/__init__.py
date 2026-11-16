@@ -136,8 +136,11 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     subdevice_device_ids: set[str] = {
         device.id
         for device in device_reg.devices.values()
-        for domain, identifier in device.identifiers
-        if domain == DOMAIN and identifier.startswith("sub_")
+        for identifier in device.identifiers
+        if len(identifier) == 2
+        and identifier[0] == DOMAIN
+        and isinstance(identifier[1], str)
+        and identifier[1].startswith("sub_")
     }
 
     for entity_entry in all_entries:
