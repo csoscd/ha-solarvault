@@ -32,6 +32,9 @@ def coordinator():
     coord._ever_received = False
     coord._lifecycle_active = False
     coord._stop_requested = False
+    coord._silence_warned = False
+    coord._silence_issue_created = False
+    coord._fork_version = "test"
     coord.add_entities_callback = None
     coord.add_switch_entities_callback = None
     coord._data_cache = {}

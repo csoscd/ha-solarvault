@@ -7,6 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import IntegrationNotLoaded, async_get_loaded_integration
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -246,10 +247,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Migrate unique IDs from v1.x single-instance format (runs harmlessly if already migrated)
     await _migrate_unique_ids(hass, entry)
 
+    # Retrieve fork version from integration manifest for log identification
+    fork_version = "unknown"
+    try:
+        integration = async_get_loaded_integration(hass, DOMAIN)
+        fork_version = integration.manifest.get("version", "unknown")
+    except IntegrationNotLoaded:
+        pass
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "config": entry.data,
         "coordinator": None,
+        "fork_version": fork_version,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -230,6 +230,27 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.5.6
+
+- **Endless re-authentication loop for lowercase device SN fixed (issue #23):** When a user entered the device serial number in lowercase, the integration never received a matching MQTT message (MQTT topics are case-sensitive). The 120 s silence heuristic then opened a re-authentication dialog; the user re-entered the token; the integration reloaded — the timer restarted: an endless loop.
+
+  Changes:
+  - **Config flow:** A lowercase SN now routes to a one-step `confirm_sn` form that pre-fills the uppercase version for confirmation.
+  - **Silence heuristic:** After 120 s without any valid MQTT reply, the integration emits a log WARNING and creates an HA Repair Issue instead of opening a re-auth dialog. The issue disappears automatically on the first valid MQTT message.
+  - **Re-auth unchanged:** The re-authentication dialog is still triggered by an explicit type-123 / error 401 response from the device. The reauth form now shows the configured SN.
+  - **Fork identification:** Startup log includes `[Jackery SolarVault (csoscd fork) v2.5.6]`.
+  - **HACS display name:** Changed to `"Jackery SolarVault (csoscd fork)"` (cosmetic only; repo URL and domain `jackery` unchanged).
+
+**Who is affected:** Anyone who entered the device SN in lowercase when setting up the integration, or who experienced a re-authentication loop without having changed the token.
+
+**Upgrade notes:**
+- **HA restart required** after update (new translation strings; integration reload is not sufficient).
+- **Lowercase SN:** If your current entry uses a lowercase SN, delete it and recreate with the uppercase version (e.g. `HR2C…`). The integration cannot migrate this automatically.
+- **HACS display name:** HACS will now show "Jackery SolarVault (csoscd fork)" — this is cosmetic and does not affect the update path.
+- **Minimum HA version:** Raised to `2025.8.0` (was already required in practice since v2.5.1 due to `OptionsFlowWithReload`).
+
+---
+
 ### What's new in v2.5.5
 
 - **Startup crash with 3-part device identifiers fixed** (issues #27, #28): `_migrate_unique_ids()` crashed with `ValueError: too many values to unpack (expected 2, got 3)` if any other integration (e.g. HomeKit bridge) registered a device with a 3-element identifier in the HA device registry. The Jackery integration then failed to load entirely. Fixed with an explicit `len(identifier) == 2` guard.
@@ -582,7 +603,11 @@ Existing single-device installations are migrated automatically on first startup
 
 #### Re-Authentication flow
 
-If the device reports a token mismatch (MQTT type-123 / error 401), Home Assistant will now show a persistent notification prompting you to re-enter the token. This avoids having to remove and re-add the integration when the token changes.
+If the device reports a token mismatch (MQTT type-123 / error 401), Home Assistant will now prompt you to re-enter the token. This avoids having to remove and re-add the integration when the token changes.
+
+If no MQTT response is received within 120 seconds of startup, the integration now emits a log WARNING and creates an HA Repair Issue instead of opening a re-authentication dialog. The warning lists three likely causes: wrong serial number (see note on capitalisation below), wrong token, or the device/broker being unreachable. The Repair Issue disappears automatically as soon as the first valid MQTT message arrives.
+
+**Serial number capitalisation:** Jackery MQTT topics are case-sensitive, and device serial numbers are uppercase (e.g. `HR2C…`). If you entered the SN in lowercase, the integration will never receive a matching message. Delete the entry and recreate it with the uppercase SN.
 
 #### Device card: model and firmware version
 

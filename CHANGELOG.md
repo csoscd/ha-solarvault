@@ -5,6 +5,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.6] – 2026-11-17
+
+### Fixed
+
+- **Endless re-authentication loop for lowercase device SN (Issue #23):** When a user entered the
+  device serial number in lowercase, the integration never received a matching MQTT message.
+  The 120-second silence heuristic (introduced in v2.3.0) then opened a re-authentication dialog;
+  the user re-entered the token, the integration reloaded, the timer restarted — an endless loop.
+
+  Changes:
+  - **Config flow:** A lowercase SN now routes to a one-step `confirm_sn` form that pre-fills the
+    uppercase version. The user confirms (or corrects) the SN; only the SN field is shown. An empty
+    SN is rejected with an `invalid_sn` error.
+  - **Silence heuristic:** After 120 s without any valid MQTT reply, the integration now emits a
+    log WARNING and creates an HA Repair Issue — it no longer opens a re-authentication dialog.
+    The warning lists three likely causes: wrong SN capitalisation, wrong token, device/broker
+    unreachable. The Repair Issue is deleted automatically when the first valid message arrives.
+    The re-authentication dialog is still triggered by an explicit type-123 / error 401 response.
+  - **Re-auth form:** The `reauth_confirm` step now shows the configured device SN so the user can
+    verify it. The token field strips leading/trailing whitespace.
+  - **Fork identification:** Startup log includes `[Jackery SolarVault (csoscd fork) v{version}]`
+    to make it easier to identify this fork in HA log files.
+
+### Changed
+
+- **HACS display name:** `hacs.json` name changed to `"Jackery SolarVault (csoscd fork)"` to
+  distinguish this fork from the official integration in HACS. The repository URL and integration
+  domain (`jackery`) remain unchanged — existing installations are unaffected.
+- **Minimum HA version:** Raised from `2024.1.0` to `2025.8.0` in `hacs.json` (the integration
+  already required `OptionsFlowWithReload`, available since 2025.8.0).
+
+### Upgrade notes
+
+- **HA restart required** after update (new translation strings for the `confirm_sn` step and the
+  Repair Issue). Integration reload alone is not sufficient.
+- **Lowercase SN:** If your current entry uses a lowercase SN, delete it and recreate with the
+  uppercase version. The integration cannot migrate this automatically.
+- **HACS:** HACS will now show the name "Jackery SolarVault (csoscd fork)". This is cosmetic only;
+  the update path is unchanged.
+
+---
+
 ## [2.5.5] – 2026-11-16
 
 ### Fixed
