@@ -29,6 +29,7 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -40,7 +41,10 @@ REQUEST_INTERVAL = 10  # seconds; intentionally 10 s (upstream uses 5 s — too 
 OFFLINE_TIMEOUT = 60  # seconds without any message → mark entities unavailable
 # If the device never answers within this window after setup the token is most likely rejected
 # (the device stays silent on a bad token instead of replying with an error).
-REAUTH_HINT_TIMEOUT = 120
+# Renamed from REAUTH_HINT_TIMEOUT: silence is ambiguous (wrong SN/token/broker),
+# so we emit a WARNING + HA Repair Issue instead of triggering re-auth.
+SILENCE_WARNING_TIMEOUT = 120
+SILENCE_ISSUE_ID_PREFIX = "no_mqtt_response_"
 
 # Device model lookup from deviceType field in MQTT payload
 DEVICE_TYPE_MODEL_MAP: dict[int, str] = {
@@ -1362,9 +1366,14 @@ class JackeryDataCoordinator:
         self._reauth_started: bool = False
         self._lifecycle_active: bool = False
         self._stop_requested: bool = False
-        # True as soon as one valid message for this device SN was received (re-auth heuristic)
+        # True once the silence WARNING has been emitted (suppresses repeats)
+        self._silence_warned: bool = False
+        # True once the HA Repair Issue for silence has been created
+        self._silence_issue_created: bool = False
+        # True as soon as one valid message for this device SN was received
         self._ever_received: bool = False
         self.config_entry_id: str = ""  # set by async_setup_entry
+        self._fork_version: str = "unknown"  # set by async_setup_entry from hass.data
 
         # SmartMeter HTTP polling (optional feature, controlled via options flow)
         self._smartmeter_http_task: asyncio.Task[None] | None = None
@@ -1393,6 +1402,24 @@ class JackeryDataCoordinator:
         if self._subscribed:
             return
         self._stop_requested = False
+
+        # Read fork version from hass.data (set by async_setup_entry)
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry_id, {})
+        self._fork_version = entry_data.get("fork_version", "unknown")
+
+        _LOGGER.info(
+            "Starting Jackery SolarVault (csoscd fork) v%s, device_sn=%s",
+            self._fork_version,
+            self._device_sn or "(not yet discovered)",
+        )
+        if self._device_sn and self._device_sn != self._device_sn.upper():
+            _LOGGER.warning(
+                "Device SN '%s' contains lowercase letters. "
+                "Jackery SNs are usually uppercase (e.g. 'HR2C...'). "
+                "If the device does not respond, delete this integration entry "
+                "and recreate it with the correct SN.",
+                self._device_sn,
+            )
 
         try:
             # 订阅状态主题 (Wildcard) 以发现设备和接收数据
@@ -1471,6 +1498,13 @@ class JackeryDataCoordinator:
                 pass
         self._mqtt_unsubscribers.clear()
         self._subscribed = False
+        if self._silence_issue_created:
+            ir.async_delete_issue(
+                self.hass,
+                DOMAIN,
+                f"{SILENCE_ISSUE_ID_PREFIX}{self.config_entry_id}",
+            )
+            self._silence_issue_created = False
         _LOGGER.info("Coordinator stopped")
 
     @callback
@@ -1580,6 +1614,13 @@ class JackeryDataCoordinator:
                     self._device_sn = sn
                     _LOGGER.info(f"Discovered device SN: {self._device_sn}")
                 self._last_update_time = time.time()
+                if not self._ever_received and self._silence_issue_created:
+                    ir.async_delete_issue(
+                        self.hass,
+                        DOMAIN,
+                        f"{SILENCE_ISSUE_ID_PREFIX}{self.config_entry_id}",
+                    )
+                    self._silence_issue_created = False
                 self._ever_received = True
 
                 # Sanitize child-array fields: drop non-dict list members and reject
@@ -1866,7 +1907,11 @@ class JackeryDataCoordinator:
             _LOGGER.debug("Skipping re-authentication for missing config entry %s", self.config_entry_id)
             return
         self._reauth_started = True
-        _LOGGER.warning("Triggering re-authentication: %s", reason)
+        _LOGGER.warning(
+            "Triggering re-authentication: %s [Jackery SolarVault (csoscd fork) v%s]",
+            reason,
+            self._fork_version,
+        )
         entry.async_start_reauth(self.hass)
 
     def _entity_keys_for_subdevice(self, sn: str) -> list[str]:
@@ -2362,18 +2407,50 @@ class JackeryDataCoordinator:
                 if time.time() - self._last_update_time > OFFLINE_TIMEOUT:
                     self._mark_all_offline()
 
-                # Re-auth heuristic: the device stays completely silent when it rejects
-                # the token (it does not answer with an error). If we have been polling
-                # for REAUTH_HINT_TIMEOUT seconds without a single reply, the token
-                # (or the configured SN) is most likely wrong.
+                # Silence warning: when no MQTT message is received within
+                # SILENCE_WARNING_TIMEOUT seconds, log a WARNING listing all
+                # possible causes instead of triggering a re-auth flow.
+                #
+                # Rationale: silence is ambiguous — it can mean wrong token, wrong
+                # SN (including wrong capitalisation), or unreachable device/broker.
+                # Triggering re-auth unconditionally caused an endless loop (#23):
+                # the user re-enters the token, the integration reloads, the timer
+                # begins again, the dialog reappears. The explicit type-123/401 path
+                # remains the only trigger for the re-auth dialog — that case is
+                # unambiguous because the device itself reports the token mismatch.
                 if (
                     not self._ever_received
                     and self._device_sn
-                    and time.time() - self._start_time > REAUTH_HINT_TIMEOUT
+                    and time.time() - self._start_time > SILENCE_WARNING_TIMEOUT
+                    and not self._silence_warned
                 ):
-                    self._trigger_reauth(
-                        f"no device response within {REAUTH_HINT_TIMEOUT}s after setup"
+                    _LOGGER.warning(
+                        "No MQTT response from device SN '%s' within %ds. "
+                        "Possible causes: (1) wrong SN — Jackery SNs are usually "
+                        "uppercase (e.g. 'HR2C...'), check capitalisation; "
+                        "(2) wrong token; (3) device or MQTT broker not reachable. "
+                        "If the SN or token is wrong, delete and recreate the "
+                        "integration entry with the correct values. "
+                        "[Jackery SolarVault (csoscd fork) v%s]",
+                        self._device_sn,
+                        SILENCE_WARNING_TIMEOUT,
+                        self._fork_version,
                     )
+                    self._silence_warned = True
+                    if not self._silence_issue_created:
+                        ir.async_create_issue(
+                            self.hass,
+                            DOMAIN,
+                            f"{SILENCE_ISSUE_ID_PREFIX}{self.config_entry_id}",
+                            is_fixable=False,
+                            severity=ir.IssueSeverity.WARNING,
+                            translation_key="no_mqtt_response",
+                            translation_placeholders={
+                                "device_sn": self._device_sn,
+                                "timeout": str(SILENCE_WARNING_TIMEOUT),
+                            },
+                        )
+                        self._silence_issue_created = True
 
                 if not self._device_sn:
                     _LOGGER.debug("Waiting for device SN discovery...")
@@ -2450,7 +2527,11 @@ class JackeryDataCoordinator:
                 continue
             await asyncio.sleep(0.5)
 
-        _LOGGER.debug("Sent poll requests to %s", action_topic)
+        _LOGGER.debug(
+            "Sent poll requests to %s [Jackery SolarVault (csoscd fork) v%s]",
+            action_topic,
+            self._fork_version,
+        )
 
     def _find_smartmeter_ip_and_sn(self) -> tuple[str | None, str | None]:
         """Find SmartMeter HTO907A IP and SN from MQTT cache (cts list, devType=3, subType=5)."""
@@ -2569,6 +2650,7 @@ async def async_setup_entry(
 
     coordinator = JackeryDataCoordinator(hass, topic_prefix, token, mqtt_host, device_sn)
     coordinator.config_entry_id = config_entry.entry_id
+    coordinator._fork_version = hass.data[DOMAIN][config_entry.entry_id].get("fork_version", "unknown")
 
     # Register callback for dynamic entities
     def add_entities_callback(new_entities):

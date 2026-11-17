@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from tests.conftest import FakeMqttMsg
-
 
 TOPIC_ALERT = "hb/device/TESTSN001/alert"
 TOPIC_ALERT_OTHER_SN = "hb/device/OTHERSN999/alert"

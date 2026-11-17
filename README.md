@@ -582,7 +582,11 @@ Existing single-device installations are migrated automatically on first startup
 
 #### Re-Authentication flow
 
-If the device reports a token mismatch (MQTT type-123 / error 401), Home Assistant will now show a persistent notification prompting you to re-enter the token. This avoids having to remove and re-add the integration when the token changes.
+If the device reports a token mismatch (MQTT type-123 / error 401), Home Assistant will now prompt you to re-enter the token. This avoids having to remove and re-add the integration when the token changes.
+
+If no MQTT response is received within 120 seconds of startup, the integration now emits a log WARNING and creates an HA Repair Issue instead of opening a re-authentication dialog. The warning lists three likely causes: wrong serial number (see note on capitalisation below), wrong token, or the device/broker being unreachable. The Repair Issue disappears automatically as soon as the first valid MQTT message arrives.
+
+**Serial number capitalisation:** Jackery MQTT topics are case-sensitive, and device serial numbers are uppercase (e.g. `HR2C…`). If you entered the SN in lowercase, the integration will never receive a matching message. Delete the entry and recreate it with the uppercase SN.
 
 #### Device card: model and firmware version
 

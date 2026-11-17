@@ -10,9 +10,16 @@
                     "topic_prefix": "MQTT-Topic-Präfix"
                 }
             },
+            "confirm_sn": {
+                "title": "Seriennummer prüfen",
+                "description": "Die Seriennummer '{original_sn}' enthält Kleinbuchstaben. Bei Seriennummern wird die Groß-/Kleinschreibung unterschieden; üblicherweise sind sie großgeschrieben (z. B. 'HR2C...'). Das Feld unten zeigt die Großbuchstaben-Version — bitte prüfen und ggf. korrigieren.",
+                "data": {
+                    "device_sn": "Geräte-SN"
+                }
+            },
             "reauth_confirm": {
                 "title": "Jackery neu authentifizieren",
-                "description": "Das Gerät hat einen Token-Konflikt gemeldet. Bitte den aktuellen Token eingeben, um die Verbindung wiederherzustellen.",
+                "description": "Das Gerät hat einen Token-Konflikt gemeldet. Bitte den aktuellen Token eingeben, um die Verbindung wiederherzustellen. Konfigurierte SN: {device_sn}. Hinweis: Bei Seriennummern wird die Groß-/Kleinschreibung unterschieden; üblicherweise sind sie großgeschrieben. Falls die SN falsch ist, bitte diesen Integrationseintrag löschen und mit der korrekten SN neu anlegen.",
                 "data": {
                     "token": "Token"
                 }
@@ -20,11 +27,18 @@
         },
         "error": {
             "already_configured": "Diese Geräte-SN ist bereits konfiguriert",
+            "invalid_sn": "Geräte-SN darf nicht leer sein",
             "mqtt_not_configured": "MQTT-Integration nicht konfiguriert oder nicht verfügbar. Bitte zuerst die MQTT-Integration einrichten: Einstellungen → Geräte & Dienste → Integration hinzufügen → MQTT"
         },
         "abort": {
             "already_configured": "Diese Geräte-SN ist bereits konfiguriert",
             "reauth_successful": "Neu-Authentifizierung war erfolgreich"
+        }
+    },
+    "issues": {
+        "no_mqtt_response": {
+            "title": "Jackery: keine MQTT-Antwort vom Gerät",
+            "description": "Vom Gerät mit Seriennummer **{device_sn}** wurde innerhalb von {timeout} Sekunden keine MQTT-Nachricht empfangen.\n\nMögliche Ursachen:\n1. **Falsche Seriennummer** — Jackery-Seriennummern sind üblicherweise großgeschrieben (z. B. `HR2C...`). Bitte Schreibweise prüfen.\n2. **Falscher Token** — Prüfen, ob der Token mit dem Gerät übereinstimmt.\n3. **Gerät oder MQTT-Broker nicht erreichbar** — Netzwerkverbindung prüfen.\n\n**Lösung:** Diesen Integrationseintrag löschen und mit der korrekten Seriennummer und dem korrekten Token neu anlegen, oder den Token über *Einstellungen → Geräte & Dienste → Jackery → Konfigurieren* aktualisieren."
         }
     },
     "options": {

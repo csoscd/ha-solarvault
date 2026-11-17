@@ -10,9 +10,16 @@
                     "topic_prefix": "Préfixe des topics MQTT"
                 }
             },
+            "confirm_sn": {
+                "title": "Vérifier le numéro de série",
+                "description": "Le numéro de série ‘{original_sn}’ contient des minuscules. Les numéros de série Jackery sont généralement en majuscules (p. ex. ‘HR2C...’). Le champ ci-dessous affiche la version en majuscules — veuillez vérifier et corriger si nécessaire.",
+                "data": {
+                    "device_sn": "Numéro de série de l’appareil"
+                }
+            },
             "reauth_confirm": {
                 "title": "Ré-authentifier Jackery",
-                "description": "L’appareil a signalé un conflit de jeton. Veuillez saisir le jeton actuel pour rétablir la connexion.",
+                "description": "L’appareil a signalé un conflit de jeton. Veuillez saisir le jeton actuel pour rétablir la connexion. Numéro de série configuré : {device_sn}. Remarque : les numéros de série sont sensibles à la casse et généralement en majuscules. Si le numéro de série est incorrect, supprimez cette entrée et recréez-la avec le bon numéro.",
                 "data": {
                     "token": "Jeton"
                 }
@@ -20,11 +27,18 @@
         },
         "error": {
             "already_configured": "Ce numéro de série d’appareil est déjà configuré",
+            "invalid_sn": "Le numéro de série ne doit pas être vide",
             "mqtt_not_configured": "L’intégration MQTT n’est pas configurée ou n’est pas disponible. Configurez-la d’abord via Paramètres → Appareils et services → Ajouter une intégration → MQTT."
         },
         "abort": {
             "already_configured": "Ce numéro de série d’appareil est déjà configuré",
             "reauth_successful": "La ré-authentification a réussi"
+        }
+    },
+    "issues": {
+        "no_mqtt_response": {
+            "title": "Jackery : aucune réponse MQTT de l’appareil",
+            "description": "Aucun message MQTT n’a été reçu de l’appareil avec le numéro de série **{device_sn}** dans les {timeout} secondes.\n\nCauses possibles :\n1. **Numéro de série incorrect** — Les numéros de série Jackery sont généralement en majuscules (p. ex. `HR2C...`). Vérifiez la casse.\n2. **Jeton incorrect** — Vérifiez que le jeton correspond à l’appareil.\n3. **Appareil ou broker MQTT inaccessible** — Vérifiez la connectivité réseau.\n\n**Solution :** Supprimez cette entrée et recréez-la avec le bon numéro de série et le bon jeton, ou mettez à jour le jeton via *Paramètres → Appareils et services → Jackery → Configurer*."
         }
     },
     "options": {

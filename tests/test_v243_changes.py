@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.jackery.sensor import SENSORS, STORM_WARNING_MAP
 from custom_components.jackery.number import NUMBERS
+from custom_components.jackery.sensor import SENSORS, STORM_WARNING_MAP
 
 
 class TestStormWarningMap:

@@ -10,9 +10,16 @@
                     "topic_prefix": "MQTT Topic Prefix"
                 }
             },
+            "confirm_sn": {
+                "title": "Check Serial Number",
+                "description": "The serial number '{original_sn}' contains lowercase letters. Jackery device SNs are usually uppercase (e.g. 'HR2C...'). The field below shows the uppercase version — please verify and correct if needed.",
+                "data": {
+                    "device_sn": "Device SN"
+                }
+            },
             "reauth_confirm": {
                 "title": "Re-authenticate Jackery",
-                "description": "The device reported a token mismatch. Enter the current token to restore the connection.",
+                "description": "The device reported a token mismatch. Enter the current token to restore the connection. Configured SN: {device_sn}. Note: serial numbers are case-sensitive and usually uppercase — if the SN is wrong, delete this integration entry and recreate it with the correct SN.",
                 "data": {
                     "token": "Token"
                 }
@@ -20,11 +27,18 @@
         },
         "error": {
             "already_configured": "This device SN is already configured",
+            "invalid_sn": "Device SN must not be empty",
             "mqtt_not_configured": "MQTT integration is not configured or unavailable. Please set up the MQTT integration first: Settings → Devices & Services → Add Integration → MQTT"
         },
         "abort": {
             "already_configured": "This device SN is already configured",
             "reauth_successful": "Re-authentication was successful"
+        }
+    },
+    "issues": {
+        "no_mqtt_response": {
+            "title": "Jackery: no MQTT response from device",
+            "description": "No MQTT message was received from device SN **{device_sn}** within {timeout} seconds.\n\nPossible causes:\n1. **Wrong SN** — Jackery serial numbers are usually uppercase (e.g. `HR2C...`). Check the capitalisation.\n2. **Wrong token** — Verify the token matches the device.\n3. **Device or MQTT broker unreachable** — Check network connectivity.\n\n**To fix:** Delete this integration entry and recreate it with the correct SN and token, or update the token via *Settings → Devices & Services → Jackery → Configure*."
         }
     },
     "options": {
