@@ -12,7 +12,7 @@
             },
             "confirm_sn": {
                 "title": "Seriennummer prüfen",
-                "description": "Die Seriennummer '{original_sn}' enthält Kleinbuchstaben. Bei Seriennummern wird die Groß-/Kleinschreibung unterschieden; üblicherweise sind sie großgeschrieben (z. B. 'HR2C...'). Das Feld unten zeigt die Großbuchstaben-Version — bitte prüfen und ggf. korrigieren.",
+                "description": "Die Seriennummer **{original_sn}** enthält Kleinbuchstaben. Bei Seriennummern wird die Groß-/Kleinschreibung unterschieden; üblicherweise sind sie großgeschrieben (z. B. HR2C…). Das Feld unten zeigt die Großbuchstaben-Version — bitte prüfen und ggf. korrigieren.",
                 "data": {
                     "device_sn": "Geräte-SN"
                 }

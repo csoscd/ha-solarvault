@@ -12,7 +12,7 @@
             },
             "confirm_sn": {
                 "title": "Check Serial Number",
-                "description": "The serial number '{original_sn}' contains lowercase letters. Jackery device SNs are usually uppercase (e.g. 'HR2C...'). The field below shows the uppercase version — please verify and correct if needed.",
+                "description": "The serial number **{original_sn}** contains lowercase letters. Jackery device SNs are usually uppercase (e.g. HR2C…). The field below shows the uppercase version — please verify and correct if needed.",
                 "data": {
                     "device_sn": "Device SN"
                 }
