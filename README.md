@@ -18,81 +18,6 @@
 
 ---
 
-### Changes vs. the original
-
-#### New sensors (SolarVault 3 Pro Max)
-
-| Sensor | MQTT field | Description |
-|---|---|---|
-| Inverter Stack Input Power | `stackInPw` | AC power flowing into the inverter stack |
-| Inverter Stack Output Power | `stackOutPw` | AC power flowing out of the inverter stack |
-| BMS SOC | `soc` | Combined BMS state of charge across all battery units |
-| Battery State | `batState` | Current battery operation state (0=transitioning, 1=normal, 2=active) |
-| Ethernet Connected | `ethPort` | Whether the Ethernet port is connected |
-| WiFi Signal | `wsig` | WiFi signal strength in dBm |
-| Max Inverter Standby Power | `maxInvStdPw` | Configured inverter standby power limit |
-| Max Grid Standby Power | `maxGridStdPw` | Configured grid standby power limit |
-| AC to Grid Energy | `acOtOngridEgy` | Cumulative AC-to-grid energy |
-| CT Import Energy | `inCtEgy` | Cumulative system-level CT import energy (added in firmware post-2026-07) |
-| CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
-| Forced Charging (Switch) | `socForceChg` | See control entities below |
-| WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
-| WLAN IP | `wip` | IP address of the SolarVault on the WiFi network |
-| Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
-| Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
-| Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power / fast_charging |
-| OnGrid Status | `ongridStat` | Grid-tie status: disconnected / connected |
-| CT Status | `ctStat` | CT meter connection status: disconnected / connected |
-| Grid Meter Link | `gridSate` | Grid meter link health: not_linked / linked |
-| Max Feed Grid Power | `maxFeedGrid` | Maximum grid feed-in power reported by the device (from type-106 status) — also writable, see control entities |
-
-#### New control entities (SolarVault 3 Pro Max)
-
-| Entity type | Entity | MQTT field | Range / Options | Description |
-|---|---|---|---|---|
-| Number | SOC Charge Limit | `socChgLimit` | 50–100 % | Maximum SOC the battery charges to |
-| Number | SOC Discharge Limit | `socDischgLimit` | 5–49 % | Minimum SOC the battery discharges to |
-| Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–2500 W (10 W steps) | Maximum OnGrid feed-in power (Einspeiseleistung). The Jackery app only offers 800/1200/2500 W presets, but live testing confirmed the device accepts and enforces arbitrary 10 W step values. |
-| Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
-| Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–2500 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (`maxOutPw`). Confirmed writable via cmd=5 (Issue #11). |
-| Switch | Forced Charging | `socForceChg` | on / off | Matches the "Erzwungenes Laden" toggle in the Jackery app. When **off**: grid charging only triggers as an emergency below 2% SOC. When **on**: grid charging triggers as soon as SOC falls below the configured SOC Discharge Limit. |
-| Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
-| Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
-| Switch | Auto Standby Allowed | `isAutoStandby` | on / off | Whether auto-standby is permitted |
-| Switch | EPS Switch | `swEps` | on / off | Enable/disable EPS (off-grid) output |
-| Switch | Off-Grid Fallback | `offGridDown` | on / off | Enable off-grid fallback mode |
-| Switch | Follow Meter Power (Zähler folgen) | `isFollowMeterPw` | on / off | Sub-mode within Benutzerdefiniert (workModel=4): device tracks the SmartMeter to achieve net-zero grid exchange. **Only available when Work Mode = Benutzerdefiniert.** |
-| Button | Reboot | – | – | Sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
-
-#### SmartMeter 3P / devType=3 CT devices (HTO907A, Shelly Pro 3EM, and others)
-
-The original integration incorrectly classified devType=3 CT devices as smart plugs instead of CT meters (see [issue #18](https://github.com/Jackery-Official/jackery/issues/18)). This caused the energy flow calculation to receive no CT data at all.
-
-This fork fixes the classification for **all devType=3 devices**, regardless of manufacturer or subType:
-
-| Device | subType | Tested |
-|---|---|---|
-| Jackery SmartMeter 3P (HTO907A) | 5 | ✅ |
-| Shelly Pro 3EM | 2 | ✅ |
-
-Both devices send identical MQTT field names and expose the same **19 sensors**:
-
-| Sensor | MQTT field | Description |
-|---|---|---|
-| Grid Import Power | `tPhasePw` | Total net grid import power |
-| Grid Export Power | `tnPhasePw` | Total net grid export power |
-| L1/L2/L3 Import Power | `a/b/cPhasePw` | Per-phase grid import power |
-| L1/L2/L3 Export Power | `an/bn/cnPhasePw` | Per-phase grid export power |
-| Grid Import Energy | `tPhaseEgy` | Cumulative total grid import energy |
-| Grid Export Energy | `tnPhaseEgy` | Cumulative total grid export energy |
-| L1/L2/L3 Import Energy | `a/b/cPhaseEgy` | Cumulative per-phase import energy |
-| L1/L2/L3 Export Energy | `an/bn/cnPhaseEgy` | Cumulative per-phase export energy |
-| Communication Mode | `commMode` | 1 = LAN (local MQTT), 2 = Cloud relay – useful for diagnosing data loss |
-| Communication State | `commState` | 1 = online, 0 = offline |
-| IP Address | `wip` | IP address of the SmartMeter on the local network |
-
----
-
 ### Features
 
 - **Custom Home Assistant integration** (no YAML entities required)
@@ -114,8 +39,6 @@ Before the integration can receive data, **two things must be in place**:
 
 1. **MQTT integration set up in Home Assistant**
    See the [Home Assistant MQTT integration docs](https://www.home-assistant.io/integrations/mqtt/) for setup instructions (Mosquitto add-on or external broker).
-
-   ![mqtt_setup_ha](./img/mqtt_setup_ha.png)
 
 2. **Device configured via Jackery app**
    - Use the Jackery mobile app (version **≥ 2.0.0**) to connect the device to your MQTT broker.
@@ -189,6 +112,81 @@ The SmartMeter HTO907A can switch on its own from local MQTT mode ("LAN") to Jac
 Restarting the SolarVault (via the Jackery app or directly on the device) causes the SmartMeter to re-register with the SolarVault and automatically choose the LAN path. After the restart, `communication_mode` should return to `1` and measurement data should resume.
 
 > **Note:** There is no MQTT command to set commMode directly — the mode is decided by the SmartMeter itself and cannot be overridden via MQTT.
+
+---
+
+### Changes vs. the original
+
+#### New sensors (SolarVault 3 Pro Max)
+
+| Sensor | MQTT field | Description |
+|---|---|---|
+| Inverter Stack Input Power | `stackInPw` | AC power flowing into the inverter stack |
+| Inverter Stack Output Power | `stackOutPw` | AC power flowing out of the inverter stack |
+| BMS SOC | `soc` | Combined BMS state of charge across all battery units |
+| Battery State | `batState` | Current battery operation state (0=transitioning, 1=normal, 2=active) |
+| Ethernet Connected | `ethPort` | Whether the Ethernet port is connected |
+| WiFi Signal | `wsig` | WiFi signal strength in dBm |
+| Max Inverter Standby Power | `maxInvStdPw` | Configured inverter standby power limit |
+| Max Grid Standby Power | `maxGridStdPw` | Configured grid standby power limit |
+| AC to Grid Energy | `acOtOngridEgy` | Cumulative AC-to-grid energy |
+| CT Import Energy | `inCtEgy` | Cumulative system-level CT import energy (added in firmware post-2026-07) |
+| CT Export Energy | `outCtEgy` | Cumulative system-level CT export energy (added in firmware post-2026-07) |
+| Forced Charging (Switch) | `socForceChg` | See control entities below |
+| WiFi SSID | `wname` | SSID of the connected WiFi network (empty when Ethernet is active) |
+| WLAN IP | `wip` | IP address of the SolarVault on the WiFi network |
+| Ethernet IP | `eip` | Ethernet IP address of the SolarVault |
+| Device Capability | `ability` | Capability bitmask – changes value after firmware updates |
+| Device Status | `stat` | Device operation status: normal / waiting / alarm / fault / standby / low_power / fast_charging |
+| OnGrid Status | `ongridStat` | Grid-tie status: disconnected / connected |
+| CT Status | `ctStat` | CT meter connection status: disconnected / connected |
+| Grid Meter Link | `gridSate` | Grid meter link health: not_linked / linked |
+| Max Feed Grid Power | `maxFeedGrid` | Maximum grid feed-in power reported by the device (from type-106 status) — also writable, see control entities |
+
+#### New control entities (SolarVault 3 Pro Max)
+
+| Entity type | Entity | MQTT field | Range / Options | Description |
+|---|---|---|---|---|
+| Number | SOC Charge Limit | `socChgLimit` | 50–100 % | Maximum SOC the battery charges to |
+| Number | SOC Discharge Limit | `socDischgLimit` | 5–49 % | Minimum SOC the battery discharges to |
+| Number | Max Feed-in Power (OnGrid) | `maxOutPw` | 0–2500 W (10 W steps) | Maximum OnGrid feed-in power (Einspeiseleistung). The Jackery app only offers 800/1200/2500 W presets, but live testing confirmed the device accepts and enforces arbitrary 10 W step values. |
+| Number | Default Output Power | `defaultPw` | 0–200 W (10 W steps) | Fallback output power for Benutzerdefiniert mode (workModel=4) when no schedule entry is active. App limit: 200 W. Schedule slots (configured in app, cloud-only) can be up to 800 W. |
+| Number | Max Grid Feed-In Limit | `maxFeedGrid` | 0–2500 W (10 W steps) | System-level enforced grid feed-in cap. **Distinct from** "Max Feed-In Power" (`maxOutPw`). Confirmed writable via cmd=5 (Issue #11). |
+| Switch | Forced Charging | `socForceChg` | on / off | Matches the "Erzwungenes Laden" toggle in the Jackery app. When **off**: grid charging only triggers as an emergency below 2% SOC. When **on**: grid charging triggers as soon as SOC falls below the configured SOC Discharge Limit. |
+| Select | Auto Standby Mode | `autoStandby` | invalid / standby / on | Controls auto-standby behaviour |
+| Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
+| Switch | Auto Standby Allowed | `isAutoStandby` | on / off | Whether auto-standby is permitted |
+| Switch | EPS Switch | `swEps` | on / off | Enable/disable EPS (off-grid) output |
+| Switch | Off-Grid Fallback | `offGridDown` | on / off | Enable off-grid fallback mode |
+| Switch | Follow Meter Power (Zähler folgen) | `isFollowMeterPw` | on / off | Sub-mode within Benutzerdefiniert (workModel=4): device tracks the SmartMeter to achieve net-zero grid exchange. **Only available when Work Mode = Benutzerdefiniert.** |
+| Button | Reboot | – | – | Sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
+
+#### SmartMeter 3P / devType=3 CT devices (HTO907A, Shelly Pro 3EM, and others)
+
+The original integration incorrectly classified devType=3 CT devices as smart plugs instead of CT meters (see [issue #18](https://github.com/Jackery-Official/jackery/issues/18)). This caused the energy flow calculation to receive no CT data at all.
+
+This fork fixes the classification for **all devType=3 devices**, regardless of manufacturer or subType:
+
+| Device | subType | Tested |
+|---|---|---|
+| Jackery SmartMeter 3P (HTO907A) | 5 | ✅ |
+| Shelly Pro 3EM | 2 | ✅ |
+
+Both devices send identical MQTT field names and expose the same **19 sensors**:
+
+| Sensor | MQTT field | Description |
+|---|---|---|
+| Grid Import Power | `tPhasePw` | Total net grid import power |
+| Grid Export Power | `tnPhasePw` | Total net grid export power |
+| L1/L2/L3 Import Power | `a/b/cPhasePw` | Per-phase grid import power |
+| L1/L2/L3 Export Power | `an/bn/cnPhasePw` | Per-phase grid export power |
+| Grid Import Energy | `tPhaseEgy` | Cumulative total grid import energy |
+| Grid Export Energy | `tnPhaseEgy` | Cumulative total grid export energy |
+| L1/L2/L3 Import Energy | `a/b/cPhaseEgy` | Cumulative per-phase import energy |
+| L1/L2/L3 Export Energy | `an/bn/cnPhaseEgy` | Cumulative per-phase export energy |
+| Communication Mode | `commMode` | 1 = LAN (local MQTT), 2 = Cloud relay – useful for diagnosing data loss |
+| Communication State | `commState` | 1 = online, 0 = offline |
+| IP Address | `wip` | IP address of the SmartMeter on the local network |
 
 ---
 
