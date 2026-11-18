@@ -168,7 +168,7 @@ Restarting the SolarVault (via the Jackery app or directly on the device) causes
 | Select | Work Mode | `workModel` | Eigenverbrauch / Benutzerdefiniert / Tarifmodus / KI-Modus | Operating mode selector. Note: tariff/schedule configuration and KI strategy selection are cloud-only and not accessible via local MQTT. |
 | Switch | Auto Standby Allowed | `isAutoStandby` | on / off | Whether auto-standby is permitted |
 | Switch | EPS Switch | `swEps` | on / off | Enable/disable EPS (off-grid) output |
-| Switch | Off-Grid Fallback | `offGridDown` | on / off | Enable off-grid fallback mode |
+| Switch | Off-Grid Fallback | `offGridDown` | on / off | Automatically activate EPS output when grid power is lost. Only effective when EPS Switch is off; if EPS is permanently enabled, this setting has no effect. |
 | Switch | Follow Meter Power (Zähler folgen) | `isFollowMeterPw` | on / off | Sub-mode within Benutzerdefiniert (workModel=4): device tracks the SmartMeter to achieve net-zero grid exchange. **Only available when Work Mode = Benutzerdefiniert.** |
 | Button | Reboot | – | – | Sends a restart command to the SolarVault (type=1, cmd=5, reboot=1). Useful to restore SmartMeter LAN mode without touching the device or app. |
 

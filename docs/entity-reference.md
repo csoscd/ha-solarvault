@@ -193,7 +193,7 @@ or under **Settings → Devices & Services → Jackery → your device → entit
 | Number | Max Feed Grid Power | `number.jackery_{sn}_max_feed_grid_power` | `maxFeedGrid` | 0–2500 W — limits export to the **public electricity grid** (not house supply); app label "Einspeiseleistungsgrenze". Distinct from Max Feed-in Power (OnGrid) which limits the house AC bus. Only visible when the device is actually exporting to the grid; in Eigenverbrauch mode with near-zero net export the limit appears inactive. |
 | Switch | Auto Standby Allowed | `switch.jackery_{sn}_auto_standby_allowed` | `isAutoStandby` | |
 | Switch | EPS Switch | `switch.jackery_{sn}_eps_switch` | `swEps` | |
-| Switch | Off-Grid Fallback | `switch.jackery_{sn}_off_grid_fallback` | `offGridDown` | |
+| Switch | Off-Grid Fallback | `switch.jackery_{sn}_off_grid_fallback` | `offGridDown` | Automatically activates EPS output on grid loss. Only effective when EPS Switch is off. |
 | Switch | Follow Meter Power | `switch.jackery_{sn}_follow_meter_power` | `isFollowMeterPw` | Only available in Benutzerdefiniert mode |
 | Button | Reboot | `button.jackery_{sn}_reboot` | `reboot=1` | Useful to restore SmartMeter LAN mode |
 
