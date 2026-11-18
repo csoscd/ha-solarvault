@@ -18,19 +18,6 @@
 
 ---
 
-## Entity Reference
-
-With 109+ entities, finding the right sensor can be tricky.
-**[→ docs/entity-reference.md](docs/entity-reference.md)** lists all sensors by category, explains which ones to use for energy dashboards, and explains why SmartMeter sensors are preferred over SolarVault-internal sensors for grid import/export.
-
-Entity IDs follow the pattern:
-```
-{domain}.jackery_{sn_lowercase}_{entity_display_name_slug}
-```
-Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
-
----
-
 ### Changes vs. the original
 
 #### New sensors (SolarVault 3 Pro Max)
@@ -115,20 +102,26 @@ Both devices send identical MQTT field names and expose the same **19 sensors**:
 - **Battery SoC** in percent with proper scaling
 - Ready-to-use example configuration for **Energy Flow Card Plus**
 
+### What it looks like
+
+| Integration overview | Device controls |
+|---|---|
+| ![Integration overview](img/HA-Integration_Overview.png) | ![Device controls](img/HA-Integration_Details.png) |
+
 ### Prerequisites
 
 Before the integration can receive data, **two things must be in place**:
 
-1. **MQTT broker configured and reachable**
-   - A running MQTT broker (e.g. Mosquitto) is required.
-   - Home Assistant's built-in **MQTT integration** must be configured to connect to it.
-   ![mqtt_config](./img/mqtt_config.png)
-   ![mqtt_config](./img/mqtt_config_2.png)
+1. **MQTT integration set up in Home Assistant**
+   See the [Home Assistant MQTT integration docs](https://www.home-assistant.io/integrations/mqtt/) for setup instructions (Mosquitto add-on or external broker).
+
+   ![mqtt_setup_ha](./img/mqtt_setup_ha.png)
 
 2. **Device configured via Jackery app**
    - Use the Jackery mobile app (version **≥ 2.0.0**) to connect the device to your MQTT broker.
    - Go to: Device Details → Settings → MQTT
-   ![jackery_config](./img/app_config_mqtt.png)
+
+   ![mqtt_setup_app](https://github.com/Jackery-Official/jackery/raw/main/img/pic/2APPMQTT%E9%85%8D%E7%BD%AE.png)
 
 ---
 
@@ -143,6 +136,19 @@ Before the integration can receive data, **two things must be in place**:
    - **Device SN**: your device serial number (visible in the Jackery app)
    - **Token**: your device token (visible in the Jackery app MQTT settings)
    - **Topic Prefix**: `hb` (default)
+
+---
+
+### Entity Reference
+
+With 109+ entities, finding the right sensor can be tricky.
+**[→ docs/entity-reference.md](docs/entity-reference.md)** lists all sensors by category, explains which ones to use for energy dashboards, and explains why SmartMeter sensors are preferred over SolarVault-internal sensors for grid import/export.
+
+Entity IDs follow the pattern:
+```
+{domain}.jackery_{sn_lowercase}_{entity_display_name_slug}
+```
+Example: SN `HS2C12600262HH4` → `sensor.jackery_hs2c12600262hh4_solar_power`
 
 ---
 
