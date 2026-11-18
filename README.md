@@ -52,8 +52,8 @@ Before the integration can receive data, **two things must be in place**:
 
 **Home Assistant 2026.11+ (Marketplace)**
 
-1. Go to **Settings → Add-ons & Integrations → Marketplace**
-2. Search for **"Jackery SolarVault"** and install
+1. Go to **Settings → Marketplace**
+2. Search for **"Jackery"** and install
 3. Restart Home Assistant
 
 **Older versions (HACS)**
