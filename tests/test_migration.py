@@ -447,3 +447,33 @@ async def test_mqtt_subdevice_repair_unaffected_by_http_sm_fix(hass):
         "MQTT sub-device broken uid must still be repaired to the canonical format"
     assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
         "Broken MQTT sub-device uid must be gone after repair"
+
+
+async def test_collector_subdevice_uid_repaired(hass):
+    """collector_ prefix is in _SUBDEVICE_PREFIXES — broken collector sensor must be repaired.
+
+    Guards against accidental removal of 'collector_' from _SUBDEVICE_PREFIXES.
+    """
+    _COLLECTOR_SN = "COL0001"
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    collector_device = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"sub_{_COLLECTOR_SN}")},
+        name=f"Jackery Collector {_COLLECTOR_SN}",
+    )
+
+    broken_uid = f"jackery_{_DEVICE_SN}_collector_{_COLLECTOR_SN}_import_power"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid,
+        config_entry=entry, device_id=collector_device.id,
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    canonical_uid = f"jackery_collector_{_COLLECTOR_SN}_import_power"
+    assert _find_by_uid(ent_reg, entry.entry_id, canonical_uid), \
+        "Broken collector sensor uid must be repaired to the canonical format"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken collector uid must be gone after repair"
