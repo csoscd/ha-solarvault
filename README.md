@@ -48,12 +48,23 @@ Before the integration can receive data, **two things must be in place**:
 
 ---
 
-### Installation via HACS
+### Installation
+
+**Home Assistant 2026.11+ (Marketplace)**
+
+1. Go to **Settings → Add-ons & Integrations → Marketplace**
+2. Search for **"Jackery SolarVault"** and install
+3. Restart Home Assistant
+
+**Older versions (HACS)**
 
 1. Open HACS → **Integrations** → three dots → **Custom repositories**
 2. Add URL: `https://github.com/csoscd/ha-solarvault`, Category: `Integration`
 3. Search for **"Jackery SolarVault"** and install
 4. Restart Home Assistant
+
+**Setup (all versions)**
+
 5. Go to **Settings → Devices & Services → Add Integration** → search **"Jackery"**
 6. Enter:
    - **Device SN**: your device serial number (visible in the Jackery app)
