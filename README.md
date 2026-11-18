@@ -230,6 +230,25 @@ Every push and pull request runs three GitHub Actions jobs automatically:
 
 ---
 
+### What's new in v2.5.7
+
+- **HTTP SmartMeter entity duplication fixed (issue #32):** The v2.5.3 migration (`_repair_subdevice_unique_id`)
+  ran on HTTP SmartMeter sensor entities and incorrectly stripped the `{device_sn}` prefix from their unique IDs
+  (`jackery_{device_sn}_http_sm_{sn}_{key}` → `jackery_http_sm_{sn}_{key}`). The integration then created a
+  fresh set of entities with `_2` suffixes on every HA restart, while the originals stayed unavailable.
+
+  Changes:
+  - A guard (`_SUBDEVICE_PREFIXES`) ensures only genuine MQTT sub-device IDs are repaired; `http_sm_*` IDs are
+    left untouched.
+  - Entities already damaged by the v2.5.3 bug have their prefix restored automatically; duplicate `_2` entities
+    are removed (older entity wins, history preserved).
+
+**Who is affected:** Users of v2.5.3–v2.5.6 with HTTP SmartMeter polling enabled in the integration options.
+
+**Upgrade notes:** Integration reload is sufficient — no HA restart required (no translation changes).
+
+---
+
 ### What's new in v2.5.6
 
 - **Endless re-authentication loop for lowercase device SN fixed (issue #23):** When a user entered the device serial number in lowercase, the integration never received a matching MQTT message (MQTT topics are case-sensitive). The 120 s silence heuristic then opened a re-authentication dialog; the user re-entered the token; the integration reloaded — the timer restarted: an endless loop.

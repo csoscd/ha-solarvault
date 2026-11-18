@@ -15,6 +15,9 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.jackery import DOMAIN, _migrate_unique_ids
 
+# HTTP SmartMeter sensor SN (uppercase, as reported in issue #32)
+_HTTP_SM_SERIAL = "HX2C00901440GO7"
+
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
 _DEVICE_SN = "TESTSN001"
@@ -340,3 +343,137 @@ async def test_migration_survives_three_part_identifier(hass):
     # Main-device entity must be migrated normally
     assert _find_by_uid(ent_reg, entry.entry_id, f"jackery_{_DEVICE_SN}_battery_soc"), \
         "Main-device entity must be migrated to the SN-prefixed unique_id"
+
+
+# ---------------------------------------------------------------------------
+# HTTP SmartMeter sensor migration (issue #32)
+# ---------------------------------------------------------------------------
+
+def _create_http_sm_device(hass, entry, serial=_HTTP_SM_SERIAL):
+    """Create the sub-device that HTTP SmartMeter sensors attach to."""
+    dev_reg = dr.async_get(hass)
+    return dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"sub_{serial}")},
+        name=f"Jackery SmartMeter {serial}",
+    )
+
+
+async def test_http_sm_uid_preserved(hass):
+    """A healthy HTTP SmartMeter entity must not be touched by the migration.
+
+    HTTP SmartMeter sensors use jackery_{device_sn}_http_sm_{sn}_{key} — the
+    device_sn prefix is intentional. The v2.5.3 migration incorrectly stripped it;
+    this test guards against that regression.
+    """
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_http_sm_device(hass, entry)
+
+    correct_uid = f"jackery_{_DEVICE_SN}_http_sm_{_HTTP_SM_SERIAL}_reactive_power_l1"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", correct_uid,
+        config_entry=entry, device_id=sub_device.id,
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    assert _find_by_uid(ent_reg, entry.entry_id, correct_uid), \
+        "Healthy HTTP SmartMeter entity must be preserved unchanged"
+    stripped_uid = f"jackery_http_sm_{_HTTP_SM_SERIAL}_reactive_power_l1"
+    assert not _find_by_uid(ent_reg, entry.entry_id, stripped_uid), \
+        "Migration must not strip the device_sn prefix from HTTP SmartMeter entities"
+
+
+async def test_http_sm_broken_uid_repaired(hass):
+    """A broken HTTP SmartMeter uid (prefix stripped by v2.5.3 bug) must be restored.
+
+    After the v2.5.3 migration the entity's unique_id was wrongly changed from
+    jackery_{device_sn}_http_sm_{sn}_{key}  to  jackery_http_sm_{sn}_{key}.
+    The integration no longer matched the entity and created a fresh one with _2.
+    This test verifies the broken uid is repaired and the duplicate removed.
+    """
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_http_sm_device(hass, entry)
+
+    broken_uid = f"jackery_http_sm_{_HTTP_SM_SERIAL}_reactive_power_l1"
+    original = ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid,
+        config_entry=entry, device_id=sub_device.id,
+        suggested_object_id=f"jackery_smartmeter_{_HTTP_SM_SERIAL}_l1_blindleistung",
+    )
+    await asyncio.sleep(0.02)
+    duplicate = ent_reg.async_get_or_create(
+        "sensor", "jackery", f"jackery_{_DEVICE_SN}_http_sm_{_HTTP_SM_SERIAL}_reactive_power_l1",
+        config_entry=entry, device_id=sub_device.id,
+        suggested_object_id=f"jackery_smartmeter_{_HTTP_SM_SERIAL}_l1_blindleistung",
+    )
+    assert duplicate.entity_id.endswith("_2"), \
+        "Fresh entity created while broken entity exists must get the '_2' suffix"
+
+    await _migrate_unique_ids(hass, entry)
+
+    canonical_uid = f"jackery_{_DEVICE_SN}_http_sm_{_HTTP_SM_SERIAL}_reactive_power_l1"
+    holders = _find_by_uid(ent_reg, entry.entry_id, canonical_uid)
+    assert len(holders) == 1, \
+        "Exactly one entity must hold the canonical uid after repair"
+    assert holders[0].entity_id == original.entity_id, \
+        "The original (older) entity must keep its plain entity_id after repair"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken uid must be gone after repair"
+
+
+async def test_mqtt_subdevice_repair_unaffected_by_http_sm_fix(hass):
+    """MQTT sub-device broken uid must still be repaired after the http_sm fix.
+
+    Regression guard: the guard added for HTTP SmartMeter sensors must not prevent
+    the existing MQTT sub-device repair (lowercase serial, Class A) from working.
+    """
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    sub_device = _create_sub_device(hass, entry)
+
+    broken_uid = f"jackery_{_DEVICE_SN}_smartmeter_{_SM_SERIAL}_importl3"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid,
+        config_entry=entry, device_id=sub_device.id,
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    canonical_uid = f"jackery_smartmeter_{_SM_SERIAL}_importl3"
+    assert _find_by_uid(ent_reg, entry.entry_id, canonical_uid), \
+        "MQTT sub-device broken uid must still be repaired to the canonical format"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken MQTT sub-device uid must be gone after repair"
+
+
+async def test_collector_subdevice_uid_repaired(hass):
+    """collector_ prefix is in _SUBDEVICE_PREFIXES — broken collector sensor must be repaired.
+
+    Guards against accidental removal of 'collector_' from _SUBDEVICE_PREFIXES.
+    """
+    _COLLECTOR_SN = "COL0001"
+    entry = await _create_entry(hass)
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    collector_device = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"sub_{_COLLECTOR_SN}")},
+        name=f"Jackery Collector {_COLLECTOR_SN}",
+    )
+
+    broken_uid = f"jackery_{_DEVICE_SN}_collector_{_COLLECTOR_SN}_import_power"
+    ent_reg.async_get_or_create(
+        "sensor", "jackery", broken_uid,
+        config_entry=entry, device_id=collector_device.id,
+    )
+
+    await _migrate_unique_ids(hass, entry)
+
+    canonical_uid = f"jackery_collector_{_COLLECTOR_SN}_import_power"
+    assert _find_by_uid(ent_reg, entry.entry_id, canonical_uid), \
+        "Broken collector sensor uid must be repaired to the canonical format"
+    assert not _find_by_uid(ent_reg, entry.entry_id, broken_uid), \
+        "Broken collector uid must be gone after repair"

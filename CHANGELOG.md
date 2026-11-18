@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.7] – 2026-11-18
+
+### Fixed
+
+- **HTTP SmartMeter entities duplicated after v2.5.3 migration (Issue #32):** The `_repair_subdevice_unique_id`
+  function introduced in v2.5.3 (to fix lowercase SmartMeter serial numbers) ran on HTTP SmartMeter sensor
+  entities and incorrectly stripped the `{device_sn}` prefix from their unique IDs:
+  `jackery_{device_sn}_http_sm_{sn}_{key}` → `jackery_http_sm_{sn}_{key}`.
+  The integration no longer recognised those entities and created a fresh set with `_2` suffixes on every HA
+  restart, while the originals remained unavailable.
+
+  Changes:
+  - **Class A guard:** `_repair_subdevice_unique_id` now only strips the `{device_sn}` prefix when the
+    remaining suffix matches a known sub-device type (`smartmeter_`, `battery_`, `plug_`, `ct_`, `collector_`).
+    HTTP SmartMeter sensor IDs (`http_sm_*`) are intentionally left untouched.
+  - **Class B reverse-repair:** Entities already damaged by the v2.5.3 bug
+    (`jackery_http_sm_{sn}_{key}`) have their `{device_sn}` prefix restored automatically.
+    Duplicate resolution follows the same "older entity wins" rule as in v2.5.3.
+  - `_SUBDEVICE_PREFIXES` constant introduced (shared between the device-registry path and the
+    string-based fallback); `collector_` added to the list (was previously omitted in both places).
+
+### Upgrade notes
+
+- **No HA restart required** (no translation file changes). Integration reload is sufficient.
+- **Who is affected:** Users of v2.5.3 / v2.5.4 / v2.5.5 / v2.5.6 who have HTTP SmartMeter polling enabled
+  (`Settings → Devices & Services → Jackery → Configure → Poll SmartMeter via HTTP`). After updating, the
+  duplicate `_2` entities disappear automatically; existing history on the original entities is preserved.
+
+---
+
 ## [2.5.6] – 2026-11-17
 
 ### Fixed
