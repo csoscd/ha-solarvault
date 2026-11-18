@@ -12,7 +12,7 @@
 
 ---
 
-## Support me
+### Support me
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/O5O21U13R9)
 
