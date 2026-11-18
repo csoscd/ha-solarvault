@@ -14,6 +14,12 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "jackery"
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
 
+# Sub-device unique_id prefixes that the old migration could break.
+# Used both in the device-registry-based repair and in the string-based fallback.
+_SUBDEVICE_PREFIXES: tuple[str, ...] = (
+    "smartmeter_", "battery_", "plug_", "ct_", "collector_",
+)
+
 
 def _repair_subdevice_unique_id(
     ent_reg: er.EntityRegistry,
@@ -23,24 +29,41 @@ def _repair_subdevice_unique_id(
 ) -> None:
     """Restore the canonical unique_id of a sub-device entity.
 
-    A buggy earlier run of the v2.x migration rewrote the unique_id of sub-device
-    entities from the canonical jackery_{subtype}_{sn}_{key} to the main-device
-    format jackery_{device_sn}_{subtype}_{sn}_{key}. The integration then no longer
-    matched the entity and created a second one with a "_2" suffix, while the
-    original stayed "unavailable" forever.
+    Two classes of broken unique_ids are repaired:
 
-    If the canonical unique_id is already held by a second entity (the "_2"
-    duplicate), the OLDER entity wins - it keeps the plain entity_id without the
-    ugly "_2" suffix - and the newer duplicate is removed.
+    Class A – MQTT sub-device sensors broken by the old isupper() migration
+    (issue #25):
+      jackery_{device_sn}_{subtype}_{sn}_{key}  →  jackery_{subtype}_{sn}_{key}
+      Only unique_ids whose suffix (after stripping new_prefix) starts with a known
+      sub-device prefix (_SUBDEVICE_PREFIXES) are repaired.  HTTP SmartMeter sensors
+      (suffix "http_sm_*") are intentionally left untouched.
 
-    See issue #25 for the full analysis.
+    Class B – HTTP SmartMeter sensors broken by the v2.5.3 repair bug (issue #32):
+      jackery_http_sm_{sn}_{key}  →  jackery_{device_sn}_http_sm_{sn}_{key}
+      The v2.5.3 _repair_subdevice_unique_id ran on HTTP sensors and incorrectly
+      stripped the device_sn prefix.  This reverses that damage.
+
+    If the canonical unique_id is already held by a duplicate entity (the "_2" one
+    created by the integration while the broken entity was present), the OLDER entity
+    wins and the newer duplicate is removed.
     """
     uid = entity_entry.unique_id
-    if not uid.startswith(new_prefix):
+
+    if uid.startswith(new_prefix):
+        # Class A: potential broken MQTT sub-device id.
+        suffix_after_sn = uid[len(new_prefix):]
+        if not any(suffix_after_sn.startswith(p) for p in _SUBDEVICE_PREFIXES):
+            # e.g. "http_sm_*" — device_sn prefix is intentional, do not strip.
+            return
+        canonical = f"jackery_{suffix_after_sn}"
+    elif uid.startswith("jackery_http_sm_"):
+        # Class B: HTTP SmartMeter sensor whose device_sn prefix was incorrectly
+        # stripped by a previous buggy migration run.  Restore it.
+        canonical = new_prefix + uid[len("jackery_"):]
+    else:
         # Already canonical (jackery_{subtype}_{sn}_{key}) or unknown format.
         return
 
-    canonical = f"jackery_{uid[len(new_prefix) :]}"
     holder = uid_owner.get(canonical)
     if holder is not None and holder.entity_id != entity_entry.entity_id:
         # Which entry keeps the canonical unique_id? The OLDER one: the buggy
@@ -106,8 +129,8 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     Old control-entity format: jackery_{config_entry_id}_{x}
     New control-entity format: jackery_{device_sn}_{x}
 
-    Sub-device sensors (SmartMeter, expansion battery, plug) already contain the
-    sub-device SN (uppercase) and are left as-is.
+    Sub-device sensors (SmartMeter, expansion battery, plug, CT) are detected via
+    the device registry and routed to _repair_subdevice_unique_id instead.
 
     v2.0.1 bug residue: entities with unique_id jackery_{device_sn}_main_{key} were
     created by the buggy v2.0.1 migration — they are removed here.
@@ -178,7 +201,7 @@ async def _migrate_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # The string-based check below is only a fallback for legacy entities without
         # a device assignment.
         is_subdevice = False
-        for sub_prefix in ("smartmeter_", "battery_", "plug_", "ct_"):
+        for sub_prefix in _SUBDEVICE_PREFIXES:
             if suffix.startswith(sub_prefix):
                 rest = suffix[len(sub_prefix):]
                 if rest and rest[0].isupper():
